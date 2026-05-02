@@ -3,26 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçem v9.2</title>
+    <title>Bütçem v9.3</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root { --p: #4f46e5; --s: #10b981; --d: #ef4444; --bg: #f8fafc; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 10px; display: flex; justify-content: center; }
         .app { width: 100%; max-width: 360px; background: #fff; border-radius: 24px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); min-height: 90vh; }
-        
         .summary-card { background: #1e293b; color: white; border-radius: 20px; margin-bottom: 15px; overflow: hidden; }
         .card-top { padding: 15px; text-align: center; }
-        /* Alt paneli iki satırlı hale getirdik */
         .card-bottom { background: rgba(0,0,0,0.3); padding: 12px 15px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); }
         .stats-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-        
         .filter-select { 
             background: #0f172a; color: #f1f5f9; border: 1px solid rgba(255,255,255,0.2); 
             border-radius: 10px; padding: 8px; font-size: 13px; width: 100%; cursor: pointer; 
             outline: none; margin-bottom: 12px; font-weight: 600; text-align: center;
         }
-
-        .summary-val { font-size: 26px; font-weight: 700; margin: 5px 0; color: #fff; }
+        .summary-val { font-size: 24px; font-weight: 700; margin: 5px 0; color: #fff; }
         .tabs { display: flex; gap: 5px; background: #f1f5f9; padding: 5px; border-radius: 12px; margin-bottom: 15px; }
         .tab-btn { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; background: transparent; color: #64748b; }
         .tab-btn.active { background: #fff; color: var(--p); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
@@ -40,20 +36,20 @@
 
 <div class="app">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3 style="margin:0; font-size:1rem;">Bütçem v9.2</h3>
+        <h3 style="margin:0; font-size:1rem;">Bütçem v9.3</h3>
         <button onclick="document.getElementById('settings').classList.toggle('active')" style="border:none; background:none; color:#64748b;"><i class="fas fa-cog"></i></button>
     </div>
 
     <div id="settings" class="settings">
         <input type="password" id="ghToken" placeholder="GitHub Token">
         <input type="text" id="gistId" placeholder="Gist ID">
-        <button onclick="sync('fetch')" style="width:100%; padding:5px; margin-top:5px;">Buluttan Çek</button>
+        <button onclick="sync('fetch')" style="width:100%; padding:5px; margin-top:5px;">Verileri Getir</button>
     </div>
 
     <div class="summary-card">
         <div class="card-top">
             <select id="monthFilter" class="filter-select" onchange="updateUI()"></select>
-            <div id="monthNet" class="summary-val">0.00 ₺</div>
+            <div id="monthNet" class="summary-val">0 TL</div>
             <div style="display: flex; justify-content: space-between; font-size: 11px; opacity:0.9">
                 <span>Ay Gelir: <b id="mIn" style="color:#4ade80">0</b></span>
                 <span>Ay Gider: <b id="mOut" style="color:#f87171">0</b></span>
@@ -62,11 +58,11 @@
         <div class="card-bottom">
             <div class="stats-row">
                 <span>Toplam Harcama (Yıl):</span>
-                <span id="allOut" style="font-weight:700; color:#f87171">0.00 ₺</span>
+                <span id="allOut" style="font-weight:700; color:#f87171">0 TL</span>
             </div>
             <div class="stats-row" style="margin-top:5px; padding-top:5px; border-top:1px solid rgba(255,255,255,0.1)">
                 <span>Net Kalan Bakiye:</span>
-                <span id="allNet" style="font-weight:700; color:#4ade80">0.00 ₺</span>
+                <span id="allNet" style="font-weight:700; color:#4ade80">0 TL</span>
             </div>
         </div>
     </div>
@@ -91,9 +87,17 @@
 </div>
 
 <script>
-    let transactions = JSON.parse(localStorage.getItem('butce_v92_data')) || [];
+    let transactions = JSON.parse(localStorage.getItem('butce_v93_data')) || [];
     let currentTab = 'gider';
     const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+
+    // Sayı Formatlama Fonksiyonu (21.500 TL formatı)
+    function fmt(val) {
+        return new Intl.NumberFormat('tr-TR', { 
+            minimumFractionDigits: 0, 
+            maximumFractionDigits: 2 
+        }).format(val) + " TL";
+    }
 
     function initMonthFilter() {
         const select = document.getElementById('monthFilter');
@@ -131,33 +135,33 @@
             const val = parseFloat(t.amount);
             const tKey = `${tDate.getFullYear()}-${tDate.getMonth()}`;
 
-            // Genel Toplam Hesaplama (Her zaman çalışır)
             if(t.type === 'gelir') allIn += val; else allOut += val;
 
-            // Ay Bazlı Filtreleme
             if(filter === tKey) {
                 if(t.type === 'gelir') mIn += val; else mOut += val;
                 if(t.type === currentTab) {
                     list.innerHTML += `
                         <div class="item">
-                            <div style="flex:1"><div style="font-weight:600;font-size:14px">${t.desc}</div><div style="font-size:10px;color:#94a3b8">${tDate.toLocaleDateString('tr-TR')}</div></div>
-                            <div style="font-weight:700;color:${t.type === 'gelir' ? '#10b981' : '#ef4444'}">${val.toFixed(2)} ₺</div>
+                            <div style="flex:1">
+                                <div style="font-weight:600;font-size:14px">${t.desc}</div>
+                                <div style="font-size:10px;color:#94a3b8">${tDate.toLocaleDateString('tr-TR')}</div>
+                            </div>
+                            <div style="font-weight:700;color:${t.type === 'gelir' ? '#10b981' : '#ef4444'}">
+                                ${fmt(val)}
+                            </div>
                             <i class="fas fa-trash" onclick="deleteItem(${i})" style="margin-left:15px;color:#cbd5e1;cursor:pointer"></i>
                         </div>`;
                 }
             }
         });
 
-        // Üst Kısım: Seçili Ayın Verileri
-        document.getElementById('mIn').innerText = mIn.toFixed(2);
-        document.getElementById('mOut').innerText = mOut.toFixed(2);
-        document.getElementById('monthNet').innerText = (mIn - mOut).toFixed(2) + " ₺";
+        document.getElementById('mIn').innerText = fmt(mIn);
+        document.getElementById('mOut').innerText = fmt(mOut);
+        document.getElementById('monthNet').innerText = fmt(mIn - mOut);
+        document.getElementById('allOut').innerText = fmt(allOut);
+        document.getElementById('allNet').innerText = fmt(allIn - allOut);
         
-        // Alt Kısım: Genel Toplamlar
-        document.getElementById('allOut').innerText = allOut.toFixed(2) + " ₺";
-        document.getElementById('allNet').innerText = (allIn - allOut).toFixed(2) + " ₺";
-        
-        localStorage.setItem('butce_v92_data', JSON.stringify(transactions));
+        localStorage.setItem('butce_v93_data', JSON.stringify(transactions));
     }
 
     function switchTab(tab) {
@@ -177,7 +181,7 @@
         const token = document.getElementById('ghToken').value;
         const id = document.getElementById('gistId').value;
         if(!token || !id) return;
-        document.getElementById('status').innerText = "Bulutla eşleşiyor...";
+        document.getElementById('status').innerText = "Güncelleniyor...";
         try {
             if(action === 'save') {
                 await fetch(`https://api.github.com/gists/${id}`, {
@@ -191,7 +195,7 @@
                 if(data.files["butce_data.json"]) transactions = JSON.parse(data.files["butce_data.json"].content);
             }
             initMonthFilter(); updateUI();
-            document.getElementById('status').innerText = "Eşitlendi ✅";
+            document.getElementById('status').innerText = "Bulut Güncel ✅";
             localStorage.setItem('gh_token', token); localStorage.setItem('gh_gist_id', id);
         } catch (e) { document.getElementById('status').innerText = "Hata!"; }
     }
