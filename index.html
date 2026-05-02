@@ -3,38 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçem v9.1</title>
+    <title>Bütçem v9.2</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root { --p: #4f46e5; --s: #10b981; --d: #ef4444; --bg: #f8fafc; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 10px; display: flex; justify-content: center; }
         .app { width: 100%; max-width: 360px; background: #fff; border-radius: 24px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); min-height: 90vh; }
         
-        /* Özet Kartı Tasarımı */
         .summary-card { background: #1e293b; color: white; border-radius: 20px; margin-bottom: 15px; overflow: hidden; }
         .card-top { padding: 15px; text-align: center; }
-        .card-bottom { background: rgba(0,0,0,0.3); padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.05); }
+        /* Alt paneli iki satırlı hale getirdik */
+        .card-bottom { background: rgba(0,0,0,0.3); padding: 12px 15px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .stats-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
         
-        /* Ay Seçici - Koyu ve Uyumlu Tasarım */
         .filter-select { 
-            background: #0f172a; /* Daha koyu zemin */
-            color: #f1f5f9; /* Parlak beyaz metin */
-            border: 1px solid rgba(255,255,255,0.2); 
-            border-radius: 10px; 
-            padding: 8px; 
-            font-size: 13px; 
-            width: 100%; 
-            cursor: pointer; 
-            outline: none; 
-            margin-bottom: 12px;
-            font-weight: 600;
-            appearance: none; /* Standart ok işaretini kaldırıp modern görünüm verme */
-            text-align: center;
-        }
-        /* Açılır listedeki seçeneklerin rengi (Bazı tarayıcılar için) */
-        .filter-select option {
-            background: #1e293b;
-            color: white;
+            background: #0f172a; color: #f1f5f9; border: 1px solid rgba(255,255,255,0.2); 
+            border-radius: 10px; padding: 8px; font-size: 13px; width: 100%; cursor: pointer; 
+            outline: none; margin-bottom: 12px; font-weight: 600; text-align: center;
         }
 
         .summary-val { font-size: 26px; font-weight: 700; margin: 5px 0; color: #fff; }
@@ -55,29 +40,34 @@
 
 <div class="app">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3 style="margin:0; font-size:1rem;">Bütçem v9.1</h3>
+        <h3 style="margin:0; font-size:1rem;">Bütçem v9.2</h3>
         <button onclick="document.getElementById('settings').classList.toggle('active')" style="border:none; background:none; color:#64748b;"><i class="fas fa-cog"></i></button>
     </div>
 
     <div id="settings" class="settings">
         <input type="password" id="ghToken" placeholder="GitHub Token">
         <input type="text" id="gistId" placeholder="Gist ID">
-        <button onclick="sync('fetch')" style="width:100%; padding:5px; margin-top:5px;">Verileri Çek</button>
+        <button onclick="sync('fetch')" style="width:100%; padding:5px; margin-top:5px;">Buluttan Çek</button>
     </div>
 
     <div class="summary-card">
         <div class="card-top">
-            <!-- Ay Seçici Artık Daha Koyu ve Okunaklı -->
             <select id="monthFilter" class="filter-select" onchange="updateUI()"></select>
             <div id="monthNet" class="summary-val">0.00 ₺</div>
             <div style="display: flex; justify-content: space-between; font-size: 11px; opacity:0.9">
-                <span>Gelir: <b id="mIn" style="color:#4ade80">0</b></span>
-                <span>Gider: <b id="mOut" style="color:#f87171">0</b></span>
+                <span>Ay Gelir: <b id="mIn" style="color:#4ade80">0</b></span>
+                <span>Ay Gider: <b id="mOut" style="color:#f87171">0</b></span>
             </div>
         </div>
         <div class="card-bottom">
-            <span>Genel Toplam Bakiye:</span>
-            <span id="allNet" style="font-weight:700; color:#4ade80">0.00 ₺</span>
+            <div class="stats-row">
+                <span>Toplam Harcama (Yıl):</span>
+                <span id="allOut" style="font-weight:700; color:#f87171">0.00 ₺</span>
+            </div>
+            <div class="stats-row" style="margin-top:5px; padding-top:5px; border-top:1px solid rgba(255,255,255,0.1)">
+                <span>Net Kalan Bakiye:</span>
+                <span id="allNet" style="font-weight:700; color:#4ade80">0.00 ₺</span>
+            </div>
         </div>
     </div>
 
@@ -101,7 +91,7 @@
 </div>
 
 <script>
-    let transactions = JSON.parse(localStorage.getItem('butce_v91_data')) || [];
+    let transactions = JSON.parse(localStorage.getItem('butce_v92_data')) || [];
     let currentTab = 'gider';
     const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
@@ -121,7 +111,7 @@
             let [year, month] = m.split('-');
             let option = document.createElement('option');
             option.value = m;
-            option.text = `${monthNames[month]} ${year} Detayı`;
+            option.text = `${monthNames[month]} ${year} Özeti`;
             if(!currentVal && m === `${now.getFullYear()}-${now.getMonth()}`) option.selected = true;
             else if(currentVal === m) option.selected = true;
             select.appendChild(option);
@@ -141,8 +131,10 @@
             const val = parseFloat(t.amount);
             const tKey = `${tDate.getFullYear()}-${tDate.getMonth()}`;
 
+            // Genel Toplam Hesaplama (Her zaman çalışır)
             if(t.type === 'gelir') allIn += val; else allOut += val;
 
+            // Ay Bazlı Filtreleme
             if(filter === tKey) {
                 if(t.type === 'gelir') mIn += val; else mOut += val;
                 if(t.type === currentTab) {
@@ -156,11 +148,16 @@
             }
         });
 
+        // Üst Kısım: Seçili Ayın Verileri
         document.getElementById('mIn').innerText = mIn.toFixed(2);
         document.getElementById('mOut').innerText = mOut.toFixed(2);
         document.getElementById('monthNet').innerText = (mIn - mOut).toFixed(2) + " ₺";
+        
+        // Alt Kısım: Genel Toplamlar
+        document.getElementById('allOut').innerText = allOut.toFixed(2) + " ₺";
         document.getElementById('allNet').innerText = (allIn - allOut).toFixed(2) + " ₺";
-        localStorage.setItem('butce_v91_data', JSON.stringify(transactions));
+        
+        localStorage.setItem('butce_v92_data', JSON.stringify(transactions));
     }
 
     function switchTab(tab) {
@@ -180,7 +177,7 @@
         const token = document.getElementById('ghToken').value;
         const id = document.getElementById('gistId').value;
         if(!token || !id) return;
-        document.getElementById('status').innerText = "Eşitleniyor...";
+        document.getElementById('status').innerText = "Bulutla eşleşiyor...";
         try {
             if(action === 'save') {
                 await fetch(`https://api.github.com/gists/${id}`, {
