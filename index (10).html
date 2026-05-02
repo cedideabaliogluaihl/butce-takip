@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bütçe Takip</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #f5f7fa;
+            --card: #ffffff;
+            --text: #2d3748;
+            --text2: #718096;
+            --border: #e2e8f0;
+            --gelir: #48bb78;
+            --gider: #f56565;
+            --mavi: #4299e1;
+        }
+
+        [data-theme="dark"] {
+            --bg: #1a202c;
+            --card: #2d3748;
+            --text: #f7fafc;
+            --text2: #a0aec0;
+            --border: #4a5568;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: var(--card);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        h1 { font-size: 1.5rem; }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        .ozet {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .ozet { grid-template-columns: 1fr; }
+        }
+
+        .kart {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .kart span { display: block; color: var(--text2); font-size: 0.85rem; margin-bottom: 5px; }
+        .kart b { font-size: 1.4rem; }
+        .kart.gelir b { color: var(--gelir); }
+        .kart.gider b { color: var(--gider); }
+        .kart.bakiye b { color: var(--mavi); }
+
+        .form-kutu, .liste-kutu, .grafik-kutu {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        h2 { font-size: 1.1rem; margin-bottom: 15px; }
+
+        .satir { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        @media (max-width: 500px) { .satir { grid-template-columns: 1fr; } }
+
+        label { display: block; margin-bottom: 5px; font-size: 0.85rem; color: var(--text2); font-weight: 600; }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        input:focus, select:focus { outline: none; border-color: var(--mavi); }
+
+        .btn-kaydet {
+            width: 100%;
+            padding: 14px;
+            background: var(--mavi);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-kaydet:hover { opacity: 0.9; }
+
+        .filtreler {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .filtreler select, .filtreler input { width: auto; padding: 8px 12px; font-size: 0.9rem; }
+
+        .islem {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: var(--bg);
+        }
+
+        .islem:hover { opacity: 0.9; }
+
+        .islem-bilgi h4 { font-size: 1rem; }
+        .islem-bilgi small { color: var(--text2); font-size: 0.8rem; }
+
+        .islem-tutar { font-weight: 700; font-size: 1.1rem; margin-right: 10px; }
+        .gelir .islem-tutar { color: var(--gelir); }
+        .gider .islem-tutar { color: var(--gider); }
+
+        .islem-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px 8px;
+            border-radius: 4px;
+            color: var(--text2);
+        }
+
+        .islem-btn:hover { background: var(--border); }
+        .islem-btn.sil:hover { color: var(--gider); }
+
+        .bos { text-align: center; padding: 40px; color: var(--text2); }
+
+        canvas { max-height: 250px; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 1000;
+        }
+
+        .modal.acik { display: flex; }
+
+        .modal-icerik {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 450px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-baslik {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .kapat {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text2);
+        }
+
+        .modal-btnler {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-iptal {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .btn-guncelle {
+            flex: 1;
+            padding: 12px;
+            background: var(--mavi);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Bütçe Takip</h1>
+            <button class="btn-icon" onclick="temaDegistir()" id="temaBtn">🌙</button>
+        </header>
+
+        <div class="ozet">
+            <div class="kart gelir">
+                <span>Toplam Gelir</span>
+                <b id="topGelir">₺0,00</b>
+            </div>
+            <div class="kart gider">
+                <span>Toplam Gider</span>
+                <b id="topGider">₺0,00</b>
+            </div>
+            <div class="kart bakiye">
+                <span>Net Bakiye</span>
+                <b id="netBakiye">₺0,00</b>
+            </div>
+        </div>
+
+        <div class="form-kutu">
+            <h2>➕ Yeni İşlem</h2>
+            <form id="form" onsubmit="ekle(event)">
+                <div class="satir">
+                    <div>
+                        <label>Açıklama</label>
+                        <input type="text" id="aciklama" placeholder="Örn: Maaş" required>
+                    </div>
+                    <div>
+                        <label>Tutar (₺)</label>
+                        <input type="number" id="tutar" step="0.01" min="0.01" required>
+                    </div>
+                </div>
+                <div class="satir">
+                    <div>
+                        <label>Tür</label>
+                        <select id="tur" onchange="kategoriGuncelle()">
+                            <option value="gelir">Gelir</option>
+                            <option value="gider">Gider</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Kategori</label>
+                        <select id="kategori"></select>
+                    </div>
+                </div>
+                <div class="satir">
+                    <div>
+                        <label>Tarih</label>
+                        <input type="date" id="tarih" required>
+                    </div>
+                    <div></div>
+                </div>
+                <button type="submit" class="btn-kaydet">💾 Kaydet</button>
+            </form>
+        </div>
+
+        <div class="liste-kutu">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+                <h2>📋 İşlemler</h2>
+                <div class="filtreler">
+                    <select id="fTur" onchange="listele()">
+                        <option value="hepsi">Tümü</option>
+                        <option value="gelir">Gelir</option>
+                        <option value="gider">Gider</option>
+                    </select>
+                    <select id="fKategori" onchange="listele()">
+                        <option value="hepsi">Tüm Kategoriler</option>
+                    </select>
+                    <input type="month" id="fAy" onchange="listele()">
+                    <button class="islem-btn" onclick="filtreTemizle()" title="Temizle">❌</button>
+                </div>
+            </div>
+            <div id="liste"></div>
+        </div>
+
+        <div class="grafik-kutu">
+            <h2>📊 Analiz</h2>
+            <canvas id="pastaGrafik"></canvas>
+        </div>
+    </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-icerik">
+            <div class="modal-baslik">
+                <h3>İşlemi Düzenle</h3>
+                <button class="kapat" onclick="modalKapat()">×</button>
+            </div>
+            <form onsubmit="guncelle(event)">
+                <input type="hidden" id="eId">
+                <div class="satir">
+                    <div>
+                        <label>Açıklama</label>
+                        <input type="text" id="eAciklama" required>
+                    </div>
+                    <div>
+                        <label>Tutar</label>
+                        <input type="number" id="eTutar" step="0.01" min="0.01" required>
+                    </div>
+                </div>
+                <div class="satir">
+                    <div>
+                        <label>Tür</label>
+                        <select id="eTur" onchange="eKategoriGuncelle()">
+                            <option value="gelir">Gelir</option>
+                            <option value="gider">Gider</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Kategori</label>
+                        <select id="eKategori"></select>
+                    </div>
+                </div>
+                <div class="satir">
+                    <div>
+                        <label>Tarih</label>
+                        <input type="date" id="eTarih" required>
+                    </div>
+                    <div></div>
+                </div>
+                <div class="modal-btnler">
+                    <button type="button" class="btn-iptal" onclick="modalKapat()">İptal</button>
+                    <button type="submit" class="btn-guncelle">Güncelle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let islemler = JSON.parse(localStorage.getItem('butce')) || [];
+        let grafik = null;
+
+        const kategoriler = {
+            gelir: { maas:'💼 Maaş', ekgelir:'💡 Ek Gelir', yatirim:'📈 Yatırım', diger:'🔹 Diğer' },
+            gider: { market:'🛒 Market', ulasim:'🚗 Ulaşım', fatura:'💡 Fatura', saglik:'🏥 Sağlık', eglence:'🎮 Eğlence', egitim:'📚 Eğitim', giyim:'👕 Giyim', diger:'🔸 Diğer' }
+        };
+
+        function kategoriDoldur(selectId, tur) {
+            const s = document.getElementById(selectId);
+            s.innerHTML = Object.entries(kategoriler[tur]).map(([k,v]) => `<option value="${k}">${v}</option>`).join('');
+        }
+
+        function kategoriGuncelle() { kategoriDoldur('kategori', document.getElementById('tur').value); }
+        function eKategoriGuncelle() { kategoriDoldur('eKategori', document.getElementById('eTur').value); }
+
+        function kaydet() { localStorage.setItem('butce', JSON.stringify(islemler)); }
+
+        function para(t) { return new Intl.NumberFormat('tr-TR', {style:'currency', currency:'TRY'}).format(t); }
+
+        function tarih(t) { return new Date(t).toLocaleDateString('tr-TR'); }
+
+        function ozet() {
+            const gelir = islemler.filter(i => i.tur === 'gelir').reduce((t,i) => t + i.tutar, 0);
+            const gider = islemler.filter(i => i.tur === 'gider').reduce((t,i) => t + i.tutar, 0);
+            document.getElementById('topGelir').textContent = para(gelir);
+            document.getElementById('topGider').textContent = para(gider);
+            document.getElementById('netBakiye').textContent = para(gelir - gider);
+        }
+
+        function listele() {
+            let f = [...islemler];
+            const ft = document.getElementById('fTur').value;
+            const fk = document.getElementById('fKategori').value;
+            const fa = document.getElementById('fAy').value;
+
+            if (ft !== 'hepsi') f = f.filter(i => i.tur === ft);
+            if (fk !== 'hepsi') f = f.filter(i => i.kategori === fk);
+            if (fa) f = f.filter(i => i.tarih.startsWith(fa));
+
+            const l = document.getElementById('liste');
+            if (f.length === 0) { l.innerHTML = '<div class="bos">Henüz işlem yok.</div>'; return; }
+
+            l.innerHTML = f.map(i => {
+                const k = kategoriler[i.tur]?.[i.kategori] || i.kategori;
+                const s = i.tur === 'gelir' ? '+' : '-';
+                return `
+                <div class="islem ${i.tur}">
+                    <div class="islem-bilgi">
+                        <h4>${i.aciklama}</h4>
+                        <small>${k} • ${tarih(i.tarih)}</small>
+                    </div>
+                    <div style="display:flex; align-items:center;">
+                        <span class="islem-tutar">${s}${para(i.tutar)}</span>
+                        <button class="islem-btn" onclick="duzenleAc(${i.id})">✏️</button>
+                        <button class="islem-btn sil" onclick="sil(${i.id})">🗑️</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function grafikCiz() {
+            const gelir = islemler.filter(i => i.tur === 'gelir').reduce((t,i) => t + i.tutar, 0);
+            const gider = islemler.filter(i => i.tur === 'gider').reduce((t,i) => t + i.tutar, 0);
+
+            const ctx = document.getElementById('pastaGrafik').getContext('2d');
+            if (grafik) grafik.destroy();
+
+            grafik = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Gelir', 'Gider'],
+                    datasets: [{ data: [gelir, gider], backgroundColor: ['#48bb78', '#f56565'], borderWidth: 0 }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        function ekle(e) {
+            e.preventDefault();
+            islemler.unshift({
+                id: Date.now(),
+                aciklama: document.getElementById('aciklama').value,
+                tutar: parseFloat(document.getElementById('tutar').value),
+                tur: document.getElementById('tur').value,
+                kategori: document.getElementById('kategori').value,
+                tarih: document.getElementById('tarih').value
+            });
+            kaydet();
+            guncelleHepsi();
+            document.getElementById('form').reset();
+            document.getElementById('tarih').valueAsDate = new Date();
+        }
+
+        function sil(id) {
+            if (confirm('Silmek istediğinize emin misiniz?')) {
+                islemler = islemler.filter(i => i.id !== id);
+                kaydet();
+                guncelleHepsi();
+            }
+        }
+
+        function duzenleAc(id) {
+            const i = islemler.find(x => x.id === id);
+            if (!i) return;
+            document.getElementById('eId').value = i.id;
+            document.getElementById('eAciklama').value = i.aciklama;
+            document.getElementById('eTutar').value = i.tutar;
+            document.getElementById('eTur').value = i.tur;
+            eKategoriGuncelle();
+            document.getElementById('eKategori').value = i.kategori;
+            document.getElementById('eTarih').value = i.tarih;
+            document.getElementById('modal').classList.add('acik');
+        }
+
+        function modalKapat() { document.getElementById('modal').classList.remove('acik'); }
+
+        function guncelle(e) {
+            e.preventDefault();
+            const id = parseInt(document.getElementById('eId').value);
+            const ix = islemler.findIndex(i => i.id === id);
+            if (ix === -1) return;
+            islemler[ix] = {
+                id,
+                aciklama: document.getElementById('eAciklama').value,
+                tutar: parseFloat(document.getElementById('eTutar').value),
+                tur: document.getElementById('eTur').value,
+                kategori: document.getElementById('eKategori').value,
+                tarih: document.getElementById('eTarih').value
+            };
+            kaydet();
+            guncelleHepsi();
+            modalKapat();
+        }
+
+        function filtreTemizle() {
+            document.getElementById('fTur').value = 'hepsi';
+            document.getElementById('fKategori').value = 'hepsi';
+            document.getElementById('fAy').value = '';
+            listele();
+        }
+
+        function guncelleHepsi() { ozet(); listele(); grafikCiz(); }
+
+        function temaDegistir() {
+            const h = document.documentElement;
+            const s = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            h.setAttribute('data-theme', s);
+            localStorage.setItem('tema', s);
+            document.getElementById('temaBtn').textContent = s === 'dark' ? '☀️' : '🌙';
+        }
+
+        document.getElementById('tarih').valueAsDate = new Date();
+        const t = localStorage.getItem('tema');
+        if (t) { document.documentElement.setAttribute('data-theme', t); document.getElementById('temaBtn').textContent = t === 'dark' ? '☀️' : '🌙'; }
+        kategoriGuncelle();
+
+        const fk = document.getElementById('fKategori');
+        Object.entries({...kategoriler.gelir, ...kategoriler.gider}).forEach(([k,v]) => {
+            fk.innerHTML += `<option value="${k}">${v}</option>`;
+        });
+
+        guncelleHepsi();
+    </script>
+</body>
+</html>
