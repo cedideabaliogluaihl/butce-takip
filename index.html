@@ -3,17 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçem v9</title>
+    <title>Bütçem v9.1</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root { --p: #4f46e5; --s: #10b981; --d: #ef4444; --bg: #f8fafc; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 10px; display: flex; justify-content: center; }
         .app { width: 100%; max-width: 360px; background: #fff; border-radius: 24px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); min-height: 90vh; }
+        
+        /* Özet Kartı Tasarımı */
         .summary-card { background: #1e293b; color: white; border-radius: 20px; margin-bottom: 15px; overflow: hidden; }
         .card-top { padding: 15px; text-align: center; }
-        .card-bottom { background: rgba(0,0,0,0.2); padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
-        .filter-select { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 6px; font-size: 12px; width: 100%; cursor: pointer; outline: none; margin-bottom: 10px; }
-        .summary-val { font-size: 24px; font-weight: 700; margin: 5px 0; color: #fff; }
+        .card-bottom { background: rgba(0,0,0,0.3); padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.05); }
+        
+        /* Ay Seçici - Koyu ve Uyumlu Tasarım */
+        .filter-select { 
+            background: #0f172a; /* Daha koyu zemin */
+            color: #f1f5f9; /* Parlak beyaz metin */
+            border: 1px solid rgba(255,255,255,0.2); 
+            border-radius: 10px; 
+            padding: 8px; 
+            font-size: 13px; 
+            width: 100%; 
+            cursor: pointer; 
+            outline: none; 
+            margin-bottom: 12px;
+            font-weight: 600;
+            appearance: none; /* Standart ok işaretini kaldırıp modern görünüm verme */
+            text-align: center;
+        }
+        /* Açılır listedeki seçeneklerin rengi (Bazı tarayıcılar için) */
+        .filter-select option {
+            background: #1e293b;
+            color: white;
+        }
+
+        .summary-val { font-size: 26px; font-weight: 700; margin: 5px 0; color: #fff; }
         .tabs { display: flex; gap: 5px; background: #f1f5f9; padding: 5px; border-radius: 12px; margin-bottom: 15px; }
         .tab-btn { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; background: transparent; color: #64748b; }
         .tab-btn.active { background: #fff; color: var(--p); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
@@ -31,7 +55,7 @@
 
 <div class="app">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3 style="margin:0; font-size:1rem;">Bütçem v9</h3>
+        <h3 style="margin:0; font-size:1rem;">Bütçem v9.1</h3>
         <button onclick="document.getElementById('settings').classList.toggle('active')" style="border:none; background:none; color:#64748b;"><i class="fas fa-cog"></i></button>
     </div>
 
@@ -43,6 +67,7 @@
 
     <div class="summary-card">
         <div class="card-top">
+            <!-- Ay Seçici Artık Daha Koyu ve Okunaklı -->
             <select id="monthFilter" class="filter-select" onchange="updateUI()"></select>
             <div id="monthNet" class="summary-val">0.00 ₺</div>
             <div style="display: flex; justify-content: space-between; font-size: 11px; opacity:0.9">
@@ -52,7 +77,7 @@
         </div>
         <div class="card-bottom">
             <span>Genel Toplam Bakiye:</span>
-            <span id="allNet" style="font-weight:700">0.00 ₺</span>
+            <span id="allNet" style="font-weight:700; color:#4ade80">0.00 ₺</span>
         </div>
     </div>
 
@@ -76,7 +101,7 @@
 </div>
 
 <script>
-    let transactions = JSON.parse(localStorage.getItem('butce_v9_data')) || [];
+    let transactions = JSON.parse(localStorage.getItem('butce_v91_data')) || [];
     let currentTab = 'gider';
     const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
@@ -116,10 +141,8 @@
             const val = parseFloat(t.amount);
             const tKey = `${tDate.getFullYear()}-${tDate.getMonth()}`;
 
-            // Genel toplam hesaplama
             if(t.type === 'gelir') allIn += val; else allOut += val;
 
-            // Ay bazlı filtreleme
             if(filter === tKey) {
                 if(t.type === 'gelir') mIn += val; else mOut += val;
                 if(t.type === currentTab) {
@@ -137,7 +160,7 @@
         document.getElementById('mOut').innerText = mOut.toFixed(2);
         document.getElementById('monthNet').innerText = (mIn - mOut).toFixed(2) + " ₺";
         document.getElementById('allNet').innerText = (allIn - allOut).toFixed(2) + " ₺";
-        localStorage.setItem('butce_v9_data', JSON.stringify(transactions));
+        localStorage.setItem('butce_v91_data', JSON.stringify(transactions));
     }
 
     function switchTab(tab) {
