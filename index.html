@@ -16,6 +16,7 @@
             --gelir: #48bb78;
             --gider: #f56565;
             --mavi: #4299e1;
+            --mavi2: #3182ce;
         }
 
         [data-theme="dark"] {
@@ -122,6 +123,19 @@
         }
 
         .btn-kaydet:hover { opacity: 0.9; }
+
+        .btn-kucuk {
+            padding: 8px 14px;
+            background: var(--mavi);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .btn-kucuk:hover { background: var(--mavi2); }
 
         .filtreler {
             display: flex;
@@ -232,6 +246,22 @@
             cursor: pointer;
             font-weight: 600;
         }
+
+        .bilgi-kutusu {
+            background: #ebf8ff;
+            border: 1px solid #90cdf4;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+            color: #2b6cb0;
+        }
+
+        [data-theme="dark"] .bilgi-kutusu {
+            background: #2c5282;
+            border-color: #4299e1;
+            color: #bee3f8;
+        }
     </style>
 </head>
 <body>
@@ -258,6 +288,11 @@
 
         <div class="form-kutu">
             <h2>➕ Yeni İşlem</h2>
+
+            <div class="bilgi-kutusu">
+                ℹ️ Verileriniz tarayıcınızda saklanır. Telefon ve bilgisayar arasında senkronizasyon için aynı tarayıcı hesabını (Google/Apple) kullanın veya veriyi dışa aktarıp diğer cihaza aktarın.
+            </div>
+
             <form id="form" onsubmit="ekle(event)">
                 <div class="satir">
                     <div>
@@ -266,7 +301,7 @@
                     </div>
                     <div>
                         <label>Tutar (₺)</label>
-                        <input type="number" id="tutar" step="0.01" min="0.01" required>
+                        <input type="text" id="tutar" placeholder="0,00" required oninput="tutarFormatla(this)">
                     </div>
                 </div>
                 <div class="satir">
@@ -278,7 +313,7 @@
                         </select>
                     </div>
                     <div>
-                        <label>Kategori</label>
+                        <label>Kategori <button type="button" class="btn-kucuk" onclick="kategoriEkleAc()">➕ Ekle</button></label>
                         <select id="kategori"></select>
                     </div>
                 </div>
@@ -318,6 +353,7 @@
         </div>
     </div>
 
+    <!-- Düzenleme Modal -->
     <div class="modal" id="modal">
         <div class="modal-icerik">
             <div class="modal-baslik">
@@ -333,7 +369,7 @@
                     </div>
                     <div>
                         <label>Tutar</label>
-                        <input type="number" id="eTutar" step="0.01" min="0.01" required>
+                        <input type="text" id="eTutar" required oninput="tutarFormatla(this)">
                     </div>
                 </div>
                 <div class="satir">
@@ -364,12 +400,45 @@
         </div>
     </div>
 
+    <!-- Kategori Ekleme Modal -->
+    <div class="modal" id="kategoriModal">
+        <div class="modal-icerik">
+            <div class="modal-baslik">
+                <h3>Yeni Kategori Ekle</h3>
+                <button class="kapat" onclick="kategoriModalKapat()">×</button>
+            </div>
+            <form onsubmit="kategoriEkle(event)">
+                <div class="satir">
+                    <div>
+                        <label>Tür</label>
+                        <select id="yTur">
+                            <option value="gelir">Gelir</option>
+                            <option value="gider">Gider</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Emoji</label>
+                        <input type="text" id="yEmoji" placeholder="Örn: 🏠" maxlength="2" required>
+                    </div>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>Kategori Adı</label>
+                    <input type="text" id="yAd" placeholder="Örn: Kiracı" required>
+                </div>
+                <div class="modal-btnler">
+                    <button type="button" class="btn-iptal" onclick="kategoriModalKapat()">İptal</button>
+                    <button type="submit" class="btn-guncelle">Ekle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        let islemler = JSON.parse(localStorage.getItem('butce')) || [];
+        let islemler = JSON.parse(localStorage.getItem('butce_islemler')) || [];
         let grafik = null;
 
-        const kategoriler = {
+        let kategoriler = JSON.parse(localStorage.getItem('butce_kategoriler')) || {
             gelir: { maas:'💼 Maaş', ekgelir:'💡 Ek Gelir', yatirim:'📈 Yatırım', diger:'🔹 Diğer' },
             gider: { market:'🛒 Market', ulasim:'🚗 Ulaşım', fatura:'💡 Fatura', saglik:'🏥 Sağlık', eglence:'🎮 Eğlence', egitim:'📚 Eğitim', giyim:'👕 Giyim', diger:'🔸 Diğer' }
         };
@@ -382,11 +451,32 @@
         function kategoriGuncelle() { kategoriDoldur('kategori', document.getElementById('tur').value); }
         function eKategoriGuncelle() { kategoriDoldur('eKategori', document.getElementById('eTur').value); }
 
-        function kaydet() { localStorage.setItem('butce', JSON.stringify(islemler)); }
+        function kaydet() {
+            localStorage.setItem('butce_islemler', JSON.stringify(islemler));
+            localStorage.setItem('butce_kategoriler', JSON.stringify(kategoriler));
+        }
 
-        function para(t) { return new Intl.NumberFormat('tr-TR', {style:'currency', currency:'TRY'}).format(t); }
+        function para(t) {
+            return new Intl.NumberFormat('tr-TR', {style:'currency', currency:'TRY'}).format(t);
+        }
 
         function tarih(t) { return new Date(t).toLocaleDateString('tr-TR'); }
+
+        function tutarFormatla(input) {
+            let val = input.value.replace(/[^0-9,]/g, '');
+            let parts = val.split(',');
+            if (parts.length > 2) {
+                val = parts[0] + ',' + parts.slice(1).join('');
+            }
+            if (parts[1] && parts[1].length > 2) {
+                val = parts[0] + ',' + parts[1].substring(0, 2);
+            }
+            input.value = val;
+        }
+
+        function tutarSayi(val) {
+            return parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
+        }
 
         function ozet() {
             const gelir = islemler.filter(i => i.tur === 'gelir').reduce((t,i) => t + i.tutar, 0);
@@ -449,7 +539,7 @@
             islemler.unshift({
                 id: Date.now(),
                 aciklama: document.getElementById('aciklama').value,
-                tutar: parseFloat(document.getElementById('tutar').value),
+                tutar: tutarSayi(document.getElementById('tutar').value),
                 tur: document.getElementById('tur').value,
                 kategori: document.getElementById('kategori').value,
                 tarih: document.getElementById('tarih').value
@@ -473,7 +563,7 @@
             if (!i) return;
             document.getElementById('eId').value = i.id;
             document.getElementById('eAciklama').value = i.aciklama;
-            document.getElementById('eTutar').value = i.tutar;
+            document.getElementById('eTutar').value = i.tutar.toFixed(2).replace('.', ',');
             document.getElementById('eTur').value = i.tur;
             eKategoriGuncelle();
             document.getElementById('eKategori').value = i.kategori;
@@ -491,7 +581,7 @@
             islemler[ix] = {
                 id,
                 aciklama: document.getElementById('eAciklama').value,
-                tutar: parseFloat(document.getElementById('eTutar').value),
+                tutar: tutarSayi(document.getElementById('eTutar').value),
                 tur: document.getElementById('eTur').value,
                 kategori: document.getElementById('eKategori').value,
                 tarih: document.getElementById('eTarih').value
@@ -501,11 +591,46 @@
             modalKapat();
         }
 
+        function kategoriEkleAc() {
+            document.getElementById('kategoriModal').classList.add('acik');
+        }
+
+        function kategoriModalKapat() {
+            document.getElementById('kategoriModal').classList.remove('acik');
+        }
+
+        function kategoriEkle(e) {
+            e.preventDefault();
+            const tur = document.getElementById('yTur').value;
+            const emoji = document.getElementById('yEmoji').value;
+            const ad = document.getElementById('yAd').value;
+            const key = 'kat_' + Date.now();
+
+            kategoriler[tur][key] = emoji + ' ' + ad;
+            kaydet();
+
+            kategoriGuncelle();
+            eKategoriGuncelle();
+            filtreKategoriDoldur();
+
+            document.getElementById('yEmoji').value = '';
+            document.getElementById('yAd').value = '';
+            kategoriModalKapat();
+        }
+
         function filtreTemizle() {
             document.getElementById('fTur').value = 'hepsi';
             document.getElementById('fKategori').value = 'hepsi';
             document.getElementById('fAy').value = '';
             listele();
+        }
+
+        function filtreKategoriDoldur() {
+            const fk = document.getElementById('fKategori');
+            fk.innerHTML = '<option value="hepsi">Tüm Kategoriler</option>';
+            Object.entries({...kategoriler.gelir, ...kategoriler.gider}).forEach(([k,v]) => {
+                fk.innerHTML += `<option value="${k}">${v}</option>`;
+            });
         }
 
         function guncelleHepsi() { ozet(); listele(); grafikCiz(); }
@@ -514,20 +639,16 @@
             const h = document.documentElement;
             const s = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             h.setAttribute('data-theme', s);
-            localStorage.setItem('tema', s);
+            localStorage.setItem('butce_tema', s);
             document.getElementById('temaBtn').textContent = s === 'dark' ? '☀️' : '🌙';
         }
 
+        // Başlangıç
         document.getElementById('tarih').valueAsDate = new Date();
-        const t = localStorage.getItem('tema');
+        const t = localStorage.getItem('butce_tema');
         if (t) { document.documentElement.setAttribute('data-theme', t); document.getElementById('temaBtn').textContent = t === 'dark' ? '☀️' : '🌙'; }
         kategoriGuncelle();
-
-        const fk = document.getElementById('fKategori');
-        Object.entries({...kategoriler.gelir, ...kategoriler.gider}).forEach(([k,v]) => {
-            fk.innerHTML += `<option value="${k}">${v}</option>`;
-        });
-
+        filtreKategoriDoldur();
         guncelleHepsi();
     </script>
 </body>
