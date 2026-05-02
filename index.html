@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçem v5</title>
+    <title>Bütçem v6</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root { --p: #4f46e5; --s: #10b981; --d: #ef4444; --bg: #f8fafc; }
@@ -28,18 +28,18 @@
 
 <div class="app">
     <div class="header">
-        <h3 style="margin:0">Bütçem v5</h3>
+        <h3 style="margin:0">Bütçem v6</h3>
         <button onclick="document.getElementById('settings').classList.toggle('active')" style="border:none; background:none; color:#64748b;"><i class="fas fa-cog"></i></button>
     </div>
 
     <div id="settings" class="settings">
         <input type="password" id="ghToken" placeholder="GitHub Token">
         <input type="text" id="gistId" placeholder="Gist ID">
-        <button onclick="sync('fetch')" style="width:100%; padding:5px; margin-top:5px;">Verileri Yenile</button>
+        <button onclick="sync('fetch')" style="width:100%; padding:5px; margin-top:5px;">Buluttan Güncelle</button>
     </div>
 
     <div class="summary-card">
-        <div id="currentMonth" style="font-size: 12px; opacity: 0.7;">Mayıs 2026</div>
+        <div id="currentMonth" style="font-size: 12px; opacity: 0.7;">Ay Özeti</div>
         <div id="netBalance" class="summary-val">0.00 ₺</div>
         <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid #334155; padding-top: 10px;">
             <div>Gelir: <span id="totalIn" style="color:#4ade80">0</span></div>
@@ -56,6 +56,8 @@
     <div id="listContainer"><div id="list"></div></div>
 
     <div id="addForm" class="form-group hidden">
+        <label style="font-size: 11px; color: #64748b; margin-left: 5px;">İşlem Tarihi</label>
+        <input type="date" id="date">
         <input type="text" id="desc" placeholder="Açıklama">
         <input type="number" id="amount" placeholder="Tutar">
         <select id="type">
@@ -68,7 +70,7 @@
 </div>
 
 <script>
-    let transactions = JSON.parse(localStorage.getItem('butce_v5_final')) || [];
+    let transactions = JSON.parse(localStorage.getItem('butce_v6_final')) || [];
     let currentTab = 'gider';
     const fileName = "butce_data.json";
 
@@ -80,6 +82,8 @@
         if(tab === 'ekle') {
             document.getElementById('addForm').classList.remove('hidden');
             document.getElementById('listContainer').classList.add('hidden');
+            // Tarih seçiciye bugünün tarihini varsayılan olarak ata
+            document.getElementById('date').valueAsDate = new Date();
         } else {
             document.getElementById('addForm').classList.add('hidden');
             document.getElementById('listContainer').classList.remove('hidden');
@@ -90,12 +94,21 @@
     function updateUI() {
         const list = document.getElementById('list');
         const now = new Date();
+        const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+        
+        document.getElementById('currentMonth').innerText = months[now.getMonth()] + " " + now.getFullYear();
+        
         let mInc = 0, mExp = 0;
         list.innerHTML = '';
+
+        // Önce tarihe göre sırala (Yeni tarih en üstte)
+        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         transactions.forEach((t, i) => {
             const tDate = new Date(t.date);
             const val = parseFloat(t.amount);
+            
+            // Sadece içinde bulunulan ayın özetini hesapla
             if(tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear()) {
                 if(t.type === 'gelir') mInc += val; else mExp += val;
             }
@@ -118,14 +131,14 @@
         document.getElementById('totalIn').innerText = mInc.toFixed(2);
         document.getElementById('totalOut').innerText = mExp.toFixed(2);
         document.getElementById('netBalance').innerText = (mInc - mExp).toFixed(2) + " ₺";
-        localStorage.setItem('butce_v5_final', JSON.stringify(transactions));
+        localStorage.setItem('butce_v6_final', JSON.stringify(transactions));
     }
 
     async function sync(action = 'save') {
         const token = document.getElementById('ghToken').value;
         const id = document.getElementById('gistId').value;
         if(!token || !id) return;
-        document.getElementById('status').innerText = "Senkronize ediliyor...";
+        document.getElementById('status').innerText = "Eşitleniyor...";
         try {
             if(action === 'save') {
                 await fetch(`https://api.github.com/gists/${id}`, {
@@ -139,19 +152,28 @@
                 if(data.files[fileName]) transactions = JSON.parse(data.files[fileName].content);
             }
             updateUI();
-            document.getElementById('status').innerText = "Eşitlendi ✅";
+            document.getElementById('status').innerText = "Bulut Güncel ✅";
             localStorage.setItem('gh_token', token);
             localStorage.setItem('gh_gist_id', id);
-        } catch (e) { document.getElementById('status').innerText = "Hata!"; }
+        } catch (e) { document.getElementById('status').innerText = "Hata oluştu!"; }
     }
 
     function addItem() {
+        const dateInput = document.getElementById('date').value;
         const desc = document.getElementById('desc').value;
         const amount = document.getElementById('amount').value;
         const type = document.getElementById('type').value;
-        if(!desc || !amount) return alert("Lütfen alanları doldurun");
 
-        transactions.unshift({ desc, amount, type, date: new Date().toISOString() });
+        if(!dateInput || !desc || !amount) return alert("Tarih, açıklama ve tutar eksik olamaz!");
+
+        // ISO formatında sakla ki sıralama ve ay ayırma düzgün çalışsın
+        transactions.unshift({ 
+            desc, 
+            amount, 
+            type, 
+            date: new Date(dateInput).toISOString() 
+        });
+
         document.getElementById('desc').value = '';
         document.getElementById('amount').value = '';
         
@@ -160,7 +182,7 @@
     }
 
     function deleteItem(index) {
-        if(confirm("Silinsin mi?")) {
+        if(confirm("Bu işlem silinsin mi?")) {
             transactions.splice(index, 1);
             updateUI();
             sync('save');
