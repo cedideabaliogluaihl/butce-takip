@@ -3,276 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçe Yönetimi</title>
+    <title>Bütçem v3</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root {
-            --primary: #4f46e5;
-            --success: #10b981;
-            --danger: #ef4444;
-            --bg: #f3f4f6;
-            --surface: #ffffff;
-            --text: #1f2937;
-        }
+        :root { --p: #4f46e5; --s: #10b981; --d: #ef4444; --bg: #f8fafc; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 10px; display: flex; justify-content: center; }
+        .app { width: 100%; max-width: 360px; background: #fff; border-radius: 24px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); position: relative; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        h3 { margin: 0; font-size: 1.1rem; color: #1e293b; letter-spacing: -0.5px; }
+        
+        .settings { display: none; background: #f1f5f9; padding: 12px; border-radius: 16px; margin-bottom: 15px; border: 1px solid #e2e8f0; }
+        .settings.active { display: block; }
+        input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #cbd5e1; border-radius: 10px; box-sizing: border-box; outline: none; font-size: 13px; transition: 0.2s; }
+        input:focus { border-color: var(--p); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
 
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-        }
+        .summary { background: #1e293b; color: white; padding: 20px; border-radius: 20px; margin-bottom: 20px; text-align: center; }
+        .summary-label { font-size: 11px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; }
+        .summary-val { font-size: 26px; font-weight: 700; margin: 4px 0; }
+        
+        .stats { display: flex; gap: 10px; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
+        .stat { flex: 1; font-size: 12px; }
+        .stat span { display: block; font-weight: bold; font-size: 14px; }
 
-        .app-container {
-            width: 100%;
-            max-width: 480px;
-            min-height: 100vh;
-            background: var(--surface);
-            box-shadow: 0 0 20px rgba(0,0,0,0.05);
-            padding: 20px;
-            box-sizing: border-box;
-            position: relative;
-        }
+        .item { display: flex; align-items: center; padding: 12px; border-radius: 12px; margin-bottom: 8px; background: #fff; border: 1px solid #f1f5f9; transition: 0.2s; }
+        .item:active { transform: scale(0.98); }
+        .icon-box { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .inc-bg { background: #dcfce7; color: var(--s); }
+        .exp-bg { background: #fee2e2; color: var(--d); }
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-
-        h2 { margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--primary); }
-
-        /* Bulut Ayarları Paneli - Gizlenebilir */
-        .settings-panel {
-            background: #f9fafb;
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 20px;
-            display: none; /* Varsayılan gizli */
-            border: 1px solid #e5e7eb;
-        }
-
-        .settings-panel.active { display: block; animation: slideDown 0.3s ease; }
-
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        input, select {
-            width: 100%;
-            padding: 12px 15px;
-            margin: 8px 0;
-            border: 1px solid #d1d5db;
-            border-radius: 10px;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        input:focus { border-color: var(--primary); }
-
-        .btn {
-            cursor: pointer;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            padding: 12px;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-outline { background: transparent; border: 1px solid #d1d5db; color: #6b7280; width: auto; padding: 8px 12px; }
-        .btn-sync { background: var(--success); color: white; flex: 1; }
-        .btn-fetch { background: #8b5cf6; color: white; flex: 1; }
-
-        .balance-card {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            color: white;
-            padding: 25px;
-            border-radius: 20px;
-            margin-bottom: 25px;
-            text-align: center;
-        }
-
-        .list-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            background: #fff;
-            border-bottom: 1px solid #f3f4f6;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #d1d5db;
-            display: inline-block;
-            margin-right: 5px;
-        }
-
-        .status-online { background: var(--success); box-shadow: 0 0 5px var(--success); }
+        .btn-add { background: var(--p); color: white; border: none; padding: 12px; border-radius: 12px; cursor: pointer; font-weight: 600; width: 100%; font-size: 14px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2); }
+        .btn-del { color: #94a3b8; cursor: pointer; margin-left: 10px; font-size: 14px; }
+        
+        #status { position: absolute; bottom: 10px; left: 0; width: 100%; text-align: center; font-size: 10px; color: #94a3b8; pointer-events: none; }
+        .cloud-badge { font-size: 10px; background: #e2e8f0; padding: 2px 8px; border-radius: 10px; color: #64748b; }
     </style>
 </head>
 <body>
 
-<div class="app-container">
-    <header>
-        <h2>Bütçem</h2>
-        <button class="btn btn-outline" onclick="toggleSettings()">
-            <i class="fas fa-cog"></i> Bulut Ayarları
-        </button>
-    </header>
+<div class="app">
+    <div class="header">
+        <h3>Bütçe Akışım <span id="syncBadge" class="cloud-badge">Güncel</span></h3>
+        <button onclick="toggleSettings()" style="border:none; background:none; color:#64748b; cursor:pointer"><i class="fas fa-cog"></i></button>
+    </div>
 
-    <div id="settings" class="settings-panel">
-        <label style="font-size: 12px; font-weight: bold; color: #6b7280;">GITHUB YAPILANDIRMASI</label>
+    <div id="settings" class="settings">
         <input type="password" id="ghToken" placeholder="GitHub Token">
         <input type="text" id="gistId" placeholder="Gist ID">
-        <div style="display: flex; gap: 10px; margin-top: 5px;">
-            <button onclick="fetchFromGist()" class="btn btn-fetch"><i class="fas fa-cloud-download-alt"></i> Veri Çek</button>
-            <button onclick="saveToGist()" class="btn btn-sync"><i class="fas fa-cloud-upload-alt"></i> Buluta Yedekle</button>
-        </div>
-        <div id="statusLabel" style="font-size: 11px; margin-top: 10px; text-align: center; color: #9ca3af;">Bulut bağlantısı bekleniyor...</div>
+        <button onclick="fetchFromGist()" style="width:100%; padding:8px; border-radius:8px; border:none; background:#cbd5e1; font-size:11px; cursor:pointer">Zorla Buluttan Getir</button>
     </div>
 
-    <div class="balance-card">
-        <div style="opacity: 0.8; font-size: 0.9rem;">Toplam Bakiye</div>
-        <div id="totalBalance" style="font-size: 2rem; font-weight: 700; margin-top: 5px;">0.00 ₺</div>
-    </div>
-
-    <div style="margin-bottom: 30px;">
-        <h4 style="margin-bottom: 10px;">Yeni İşlem</h4>
-        <input type="text" id="desc" placeholder="Açıklama (örn. Kira, Market)">
-        <input type="number" id="amount" placeholder="Tutar">
-        <select id="type">
-            <option value="gider">Gider (-)</option>
-            <option value="gelir">Gelir (+)</option>
-        </select>
-        <button class="btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="addItem()">
-            <i class="fas fa-plus"></i> Listeye Ekle
-        </button>
-    </div>
-
-    <div>
-        <h4 style="margin-bottom: 10px;">Son İşlemler</h4>
-        <div id="itemsContainer" style="border-radius: 15px; overflow: hidden; border: 1px solid #f3f4f6;">
-            <!-- İşlemler buraya gelecek -->
+    <div class="summary">
+        <div class="summary-label">Kullanılabilir Bakiye</div>
+        <div id="netBalance" class="summary-val">0.00 ₺</div>
+        <div class="stats">
+            <div class="stat">Gelir <span id="totalIn" style="color:#4ade80">+0</span></div>
+            <div class="stat">Gider <span id="totalOut" style="color:#f87171">-0</span></div>
         </div>
     </div>
+
+    <div style="margin-bottom: 20px;">
+        <input type="text" id="desc" placeholder="İşlem adı...">
+        <div style="display: flex; gap: 8px;">
+            <input type="number" id="amount" placeholder="0.00" style="flex: 2;">
+            <select id="type" style="flex: 1;">
+                <option value="gider">Gider</option>
+                <option value="gelir">Gelir</option>
+            </select>
+        </div>
+        <button class="btn-add" onclick="addItem()">İşlemi Kaydet</button>
+    </div>
+
+    <div id="list" style="max-height: 300px; overflow-y: auto; padding-bottom: 20px;"></div>
+    
+    <div id="status">Hazır</div>
 </div>
 
 <script>
-    let transactions = JSON.parse(localStorage.getItem('butce_verileri')) || [];
+    let transactions = JSON.parse(localStorage.getItem('butce_v3_data')) || [];
     const fileName = "butce_data.json";
 
-    function toggleSettings() {
-        const panel = document.getElementById('settings');
-        panel.classList.toggle('active');
-    }
+    function toggleSettings() { document.getElementById('settings').classList.toggle('active'); }
 
     function updateUI() {
-        const container = document.getElementById('itemsContainer');
-        const balanceDisplay = document.getElementById('totalBalance');
-        let total = 0;
+        const list = document.getElementById('list');
+        let inc = 0, exp = 0;
+        list.innerHTML = '';
 
-        container.innerHTML = transactions.length ? '' : '<div style="padding: 20px; text-align: center; color: #9ca3af;">Henüz işlem yok</div>';
-
-        transactions.forEach((t, index) => {
+        transactions.forEach((t, i) => {
             const val = parseFloat(t.amount);
-            total += (t.type === 'gelir' ? val : -val);
+            const isInc = t.type === 'gelir';
+            if(isInc) inc += val; else exp += val;
             
-            container.innerHTML += `
-                <div class="list-item">
-                    <div>
-                        <div style="font-weight: 600;">${t.desc}</div>
-                        <div style="font-size: 11px; color: #9ca3af;">${new Date(t.date).toLocaleDateString()}</div>
+            list.innerHTML += `
+                <div class="item">
+                    <div class="icon-box ${isInc ? 'inc-bg' : 'exp-bg'}">
+                        <i class="fas ${isInc ? 'fa-arrow-up' : 'fa-arrow-down'}"></i>
                     </div>
-                    <div style="font-weight: 700; color: ${t.type === 'gelir' ? 'var(--success)' : 'var(--danger)'}">
-                        ${t.type === 'gelir' ? '+' : '-'}${val.toFixed(2)} ₺
+                    <div style="flex:1; margin-left:12px">
+                        <div style="font-weight:600; font-size:14px; color:#334155">${t.desc}</div>
+                        <div style="font-size:11px; color:#94a3b8">${new Date(t.date).toLocaleDateString('tr-TR')}</div>
                     </div>
-                </div>
-            `;
+                    <div style="font-weight:700; font-size:14px; color:${isInc ? 'var(--s)' : 'var(--d)'}">
+                        ${isInc ? '+' : '-'}${val.toFixed(2)}
+                    </div>
+                    <div onclick="deleteItem(${i})" class="btn-del"><i class="fas fa-times"></i></div>
+                </div>`;
         });
 
-        balanceDisplay.innerText = total.toFixed(2) + " ₺";
-        localStorage.setItem('butce_verileri', JSON.stringify(transactions));
+        document.getElementById('totalIn').innerText = '+' + inc.toFixed(2);
+        document.getElementById('totalOut').innerText = '-' + exp.toFixed(2);
+        document.getElementById('netBalance').innerText = (inc - exp).toFixed(2) + " ₺";
+        localStorage.setItem('butce_v3_data', JSON.stringify(transactions));
     }
 
-    async function saveToGist() {
+    async function sync(action = 'save') {
         const token = document.getElementById('ghToken').value;
         const id = document.getElementById('gistId').value;
-        const status = document.getElementById('statusLabel');
+        const status = document.getElementById('status');
+        const badge = document.getElementById('syncBadge');
+        if(!token || !id) return;
 
-        if(!token || !id) return alert("Önce ayarları doldurun!");
-
-        status.innerText = "Bulut güncelleniyor...";
-
-        try {
-            const response = await fetch(`https://api.github.com/gists/${id}`, {
-                method: 'PATCH',
-                headers: { 'Authorization': `token ${token}` },
-                body: JSON.stringify({
-                    files: { [fileName]: { content: JSON.stringify(transactions, null, 2) } }
-                })
-            });
-
-            if(response.ok) {
-                status.innerText = "Bulut ile senkronize edildi ✅";
-                status.style.color = "var(--success)";
-                localStorage.setItem('gh_token', token);
-                localStorage.setItem('gh_gist_id', id);
-            } else { alert("Hata: Gist ID veya Token yanlış olabilir."); }
-        } catch (e) { status.innerText = "Bağlantı hatası!"; }
-    }
-
-    async function fetchFromGist() {
-        const token = document.getElementById('ghToken').value;
-        const id = document.getElementById('gistId').value;
-        
-        if(!token || !id) return alert("Ayarlar eksik!");
+        badge.innerText = "Bağlanıyor...";
+        status.innerText = "Bulut senkronize ediliyor...";
 
         try {
-            const response = await fetch(`https://api.github.com/gists/${id}`, {
-                headers: { 'Authorization': `token ${token}` }
-            });
-            const data = await response.json();
-            if(data.files && data.files[fileName]) {
-                transactions = JSON.parse(data.files[fileName].content);
-                updateUI();
-                alert("Veriler buluttan başarıyla çekildi!");
+            if(action === 'save') {
+                await fetch(`https://api.github.com/gists/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `token ${token}` },
+                    body: JSON.stringify({ files: { [fileName]: { content: JSON.stringify(transactions, null, 2) } } })
+                });
             } else {
-                alert("Bulutta henüz dosya yok. Önce 'Yedekle' diyerek dosya oluşturun.");
+                const res = await fetch(`https://api.github.com/gists/${id}`, { headers: { 'Authorization': `token ${token}` } });
+                const data = await res.json();
+                if(data.files[fileName]) transactions = JSON.parse(data.files[fileName].content);
             }
-        } catch (e) { alert("Bağlantı hatası!"); }
+            updateUI();
+            badge.innerText = "Güncel";
+            status.innerText = "Bulut ile eşitlendi ✅";
+            localStorage.setItem('gh_token', token);
+            localStorage.setItem('gh_gist_id', id);
+        } catch (e) { 
+            badge.innerText = "Hata";
+            status.innerText = "Bağlantı kurulamadı!"; 
+        }
     }
 
     function addItem() {
         const desc = document.getElementById('desc').value;
         const amount = document.getElementById('amount').value;
         const type = document.getElementById('type').value;
-
         if(!desc || !amount) return;
 
         transactions.unshift({ desc, amount, type, date: new Date().toISOString() });
         document.getElementById('desc').value = '';
         document.getElementById('amount').value = '';
         updateUI();
+        sync('save');
     }
 
-    window.onload = () => {
+    function deleteItem(index) {
+        if(confirm("Silinsin mi?")) {
+            transactions.splice(index, 1);
+            updateUI();
+            sync('save');
+        }
+    }
+
+    // AÇILIŞTA OTOMATİK ÇALIŞAN KISIM
+    window.onload = async () => {
         document.getElementById('ghToken').value = localStorage.getItem('gh_token') || '';
         document.getElementById('gistId').value = localStorage.getItem('gh_gist_id') || '';
         updateUI();
-    }
+        // Sayfa açılır açılmaz buluttan en güncel halini çek
+        if(localStorage.getItem('gh_token')) {
+            await sync('fetch');
+        }
+    };
 </script>
-
 </body>
 </html>
