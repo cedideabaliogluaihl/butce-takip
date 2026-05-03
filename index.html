@@ -433,15 +433,60 @@
         }
     }
 
+    // ── Otomatik Pull (sayfa açılışı + her 30 sn) ──────────────────────────
+    let lastGistUpdatedAt = null; // Gist'teki son bilinen updatedAt
+
+    async function silentPull() {
+        if (!gistToken || !gistId) return;
+        try {
+            const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+                headers: { 'Authorization': `token ${gistToken}` }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const file = data.files[GIST_FILE];
+            if (!file) return;
+            const parsed = JSON.parse(file.content);
+            const remoteUpdatedAt = parsed.updatedAt || null;
+
+            // İlk yükleme veya Gist daha yeni ise uygula
+            if (lastGistUpdatedAt === null || remoteUpdatedAt !== lastGistUpdatedAt) {
+                lastGistUpdatedAt = remoteUpdatedAt;
+
+                // Sadece gerçekten farklıysa güncelle (lokal push'tan gelen aynı veriyi tekrar yazma)
+                const localHash = JSON.stringify(transactions) + JSON.stringify(myBanks);
+                const remoteHash = JSON.stringify(parsed.transactions || []) + JSON.stringify(parsed.banks || []);
+
+                if (localHash !== remoteHash) {
+                    transactions = parsed.transactions || [];
+                    myBanks      = parsed.banks        || ["Nakit"];
+                    localStorage.setItem('butce_v12_data',  JSON.stringify(transactions));
+                    localStorage.setItem('butce_v12_banks', JSON.stringify(myBanks));
+                    updateSelects();
+                    initMonthFilter();
+                    updateUI();
+                    setSyncStatus('ok', 'Güncellendi ↓ Gist\'ten çekildi', nowStr());
+                } else {
+                    setSyncStatus('ok', 'Güncel — Gist ile eşleşti', nowStr());
+                }
+            }
+        } catch(e) {
+            // Sessiz hata — polling sırasında kullanıcıyı rahatsız etme
+            console.warn('silentPull hata:', e.message);
+        }
+    }
+
     // ── Başlangıç ─────────────────────────────────────────────────────────
-    window.onload = () => {
+    window.onload = async () => {
         document.getElementById('date').valueAsDate = new Date();
         updateSelects();
         initMonthFilter();
         updateUI();
 
         if (gistToken && gistId) {
-            setSyncStatus('ok', 'Gist bağlı', '');
+            setSyncStatus('syncing', 'Gist\'ten son veriler çekiliyor…', '');
+            await silentPull(); // sayfa açılışında hemen çek
+            setInterval(silentPull, 30000); // sonra her 30 saniyede kontrol et
         } else {
             setSyncStatus('warn', 'Gist yapılandırılmadı — Ayarlar\'a gir', '');
         }
