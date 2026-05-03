@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçem v9.3</title>
+    <title>Bütçem v9.4</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root { --p: #4f46e5; --s: #10b981; --d: #ef4444; --bg: #f8fafc; }
@@ -36,7 +36,7 @@
 
 <div class="app">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3 style="margin:0; font-size:1rem;">Bütçem v9.3</h3>
+        <h3 style="margin:0; font-size:1rem;">Bütçem v9.4</h3>
         <button onclick="document.getElementById('settings').classList.toggle('active')" style="border:none; background:none; color:#64748b;"><i class="fas fa-cog"></i></button>
     </div>
 
@@ -57,7 +57,11 @@
         </div>
         <div class="card-bottom">
             <div class="stats-row">
-                <span>Toplam Harcama (Yıl):</span>
+                <span>Toplam Gelir (Yıl):</span>
+                <span id="allIn" style="font-weight:700; color:#4ade80">0 TL</span>
+            </div>
+            <div class="stats-row">
+                <span>Toplam Gider (Yıl):</span>
                 <span id="allOut" style="font-weight:700; color:#f87171">0 TL</span>
             </div>
             <div class="stats-row" style="margin-top:5px; padding-top:5px; border-top:1px solid rgba(255,255,255,0.1)">
@@ -87,11 +91,10 @@
 </div>
 
 <script>
-    let transactions = JSON.parse(localStorage.getItem('butce_v93_data')) || [];
+    let transactions = JSON.parse(localStorage.getItem('butce_v94_data')) || [];
     let currentTab = 'gider';
     const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
-    // Sayı Formatlama Fonksiyonu (21.500 TL formatı)
     function fmt(val) {
         return new Intl.NumberFormat('tr-TR', { 
             minimumFractionDigits: 0, 
@@ -125,7 +128,7 @@
     function updateUI() {
         const list = document.getElementById('list');
         const filter = document.getElementById('monthFilter').value;
-        let mIn = 0, mOut = 0, allIn = 0, allOut = 0;
+        let mIn = 0, mOut = 0, allInTotal = 0, allOutTotal = 0;
         list.innerHTML = '';
 
         transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -135,8 +138,10 @@
             const val = parseFloat(t.amount);
             const tKey = `${tDate.getFullYear()}-${tDate.getMonth()}`;
 
-            if(t.type === 'gelir') allIn += val; else allOut += val;
+            // Yıllık Toplamlar (Tüm zamanlar)
+            if(t.type === 'gelir') allInTotal += val; else allOutTotal += val;
 
+            // Ay Bazlı Filtreleme
             if(filter === tKey) {
                 if(t.type === 'gelir') mIn += val; else mOut += val;
                 if(t.type === currentTab) {
@@ -155,13 +160,17 @@
             }
         });
 
+        // Üst Kısım: Seçili Ayın Verileri
         document.getElementById('mIn').innerText = fmt(mIn);
         document.getElementById('mOut').innerText = fmt(mOut);
         document.getElementById('monthNet').innerText = fmt(mIn - mOut);
-        document.getElementById('allOut').innerText = fmt(allOut);
-        document.getElementById('allNet').innerText = fmt(allIn - allOut);
         
-        localStorage.setItem('butce_v93_data', JSON.stringify(transactions));
+        // Alt Kısım: Yıllık Toplamlar
+        document.getElementById('allIn').innerText = fmt(allInTotal);
+        document.getElementById('allOut').innerText = fmt(allOutTotal);
+        document.getElementById('allNet').innerText = fmt(allInTotal - allOutTotal);
+        
+        localStorage.setItem('butce_v94_data', JSON.stringify(transactions));
     }
 
     function switchTab(tab) {
