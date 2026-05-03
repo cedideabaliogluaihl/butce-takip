@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçem v10 - Varlık Yönetimi</title>
+    <title>Bütçem v11 - Dinamik Hesaplar</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root { --p: #4f46e5; --s: #10b981; --d: #ef4444; --bg: #f8fafc; }
@@ -11,10 +11,9 @@
         .app { width: 100%; max-width: 380px; background: #fff; border-radius: 24px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); min-height: 95vh; }
         .summary-card { background: #1e293b; color: white; border-radius: 20px; margin-bottom: 15px; overflow: hidden; }
         .card-top { padding: 15px; text-align: center; }
-        .card-bottom { background: rgba(0,0,0,0.3); padding: 12px 15px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); }
         .bank-list { background: rgba(255,255,255,0.05); padding: 10px; border-top: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .bank-item { font-size: 10px; display: flex; justify-content: space-between; padding: 4px 8px; background: rgba(0,0,0,0.2); border-radius: 6px; }
-        .summary-val { font-size: 24px; font-weight: 700; margin: 5px 0; color: #fff; }
+        .summary-val { font-size: 24px; font-weight: 700; margin: 5px 0; }
         .tabs { display: flex; gap: 4px; background: #f1f5f9; padding: 4px; border-radius: 12px; margin-bottom: 15px; }
         .tab-btn { flex: 1; border: none; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 600; background: transparent; color: #64748b; }
         .tab-btn.active { background: #fff; color: var(--p); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
@@ -23,40 +22,41 @@
         input, select { width: 100%; padding: 10px; margin: 4px 0; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; }
         .btn-add { background: var(--p); color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 8px; }
         .hidden { display: none; }
-        .bank-tag { font-size: 9px; background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; margin-top: 2px; display: inline-block; }
+        .bank-tag { font-size: 9px; background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+        .settings-box { background: #f1f5f9; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px dashed #cbd5e1; }
     </style>
 </head>
 <body>
 
 <div class="app">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3 style="margin:0; font-size:0.9rem;">Bütçem v10</h3>
-        <button onclick="document.getElementById('settings').classList.toggle('active')" style="border:none; background:none; color:#64748b;"><i class="fas fa-cog"></i></button>
+        <h3 style="margin:0; font-size:0.9rem;">Bütçem v11</h3>
+        <button onclick="toggleSettings()" style="border:none; background:none; color:#64748b;"><i class="fas fa-university"></i> Hesap Ayarları</button>
     </div>
 
-    <div id="settings" class="settings hidden" style="font-size:11px; background:#f1f5f9; padding:10px; border-radius:12px; margin-bottom:10px;">
-        <input type="password" id="ghToken" placeholder="GitHub Token">
-        <input type="text" id="gistId" placeholder="Gist ID">
-        <button onclick="sync('fetch')" style="width:100%; padding:5px; margin-top:5px;">Verileri Getir</button>
+    <!-- Dinamik Hesap Yönetimi -->
+    <div id="settings" class="settings-box hidden">
+        <div style="font-weight:700; font-size:12px; margin-bottom:8px;">Hesap/Banka Ekle</div>
+        <div style="display:flex; gap:5px;">
+            <input type="text" id="newBankName" placeholder="Örn: Garanti" style="margin:0">
+            <button onclick="addBank()" style="background:var(--s); color:white; border:none; padding:0 15px; border-radius:8px;">Ekle</button>
+        </div>
+        <div id="bankChips" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:5px;"></div>
     </div>
 
     <div class="summary-card">
         <div class="card-top">
-            <select id="monthFilter" class="filter-select" style="background:#0f172a; color:white; border:none; border-radius:8px; padding:5px; font-size:12px;" onchange="updateUI()"></select>
+            <select id="monthFilter" style="background:#0f172a; color:white; border:none; border-radius:8px; padding:5px; font-size:12px;" onchange="updateUI()"></select>
             <div id="monthNet" class="summary-val">0 TL</div>
             <div style="display: flex; justify-content: space-between; font-size: 10px; opacity:0.8">
-                <span>Gelir: <b id="mIn" style="color:#4ade80">0</b></span>
-                <span>Gider: <b id="mOut" style="color:#f87171">0</b></span>
+                <span>Ay Gelir: <b id="mIn" style="color:#4ade80">0</b></span>
+                <span>Ay Gider: <b id="mOut" style="color:#f87171">0</b></span>
             </div>
         </div>
-        <div id="bankView" class="bank-list">
-            <!-- Banka bakiyeleri buraya gelecek -->
-        </div>
-        <div class="card-bottom">
-            <div style="display:flex; justify-content:space-between">
-                <span>Net Varlık (Toplam):</span>
-                <span id="allNet" style="font-weight:700; color:#4ade80">0 TL</span>
-            </div>
+        <div id="bankView" class="bank-list"></div>
+        <div style="background: rgba(0,0,0,0.3); padding: 10px 15px; font-size: 11px; display:flex; justify-content:space-between">
+            <span>Net Varlık:</span>
+            <span id="allNet" style="font-weight:700; color:#4ade80">0 TL</span>
         </div>
     </div>
 
@@ -64,143 +64,144 @@
         <button class="tab-btn active" id="t-gider" onclick="switchTab('gider')">Gider</button>
         <button class="tab-btn" id="t-gelir" onclick="switchTab('gelir')">Gelir</button>
         <button class="tab-btn" id="t-transfer" onclick="switchTab('transfer')">Transfer</button>
-        <button class="tab-btn" id="t-ekle" onclick="switchTab('ekle')">Yeni Ekle</button>
+        <button class="tab-btn" id="t-ekle" onclick="switchTab('ekle')">Yeni</button>
     </div>
 
     <div id="listContainer"><div id="list"></div></div>
 
-    <!-- Yeni Kayıt Formu -->
     <div id="addForm" class="form-group hidden">
         <input type="date" id="date">
         <input type="text" id="desc" placeholder="Açıklama" list="history-list">
         <datalist id="history-list"></datalist>
         <input type="number" id="amount" placeholder="Tutar">
-        <select id="account">
-            <option value="Ziraat">Ziraat Bankası</option>
-            <option value="Garanti">Garanti BBVA</option>
-            <option value="İş Bankası">İş Bankası</option>
-            <option value="Nakit">Nakit</option>
-        </select>
+        <select id="accountSelect"></select>
         <select id="type"><option value="gider">Gider</option><option value="gelir">Gelir</option></select>
         <button class="btn-add" onclick="addItem()">Kaydet</button>
     </div>
 
-    <!-- Transfer Formu -->
     <div id="transferForm" class="form-group hidden">
-        <h4 style="margin-top:0">Hesaplar Arası Aktar</h4>
-        <label style="font-size:11px">Hangi Hesaptan:</label>
-        <select id="fromAcc">
-            <option value="Ziraat">Ziraat Bankası</option>
-            <option value="Garanti">Garanti BBVA</option>
-            <option value="İş Bankası">İş Bankası</option>
-            <option value="Nakit">Nakit</option>
-        </select>
-        <label style="font-size:11px">Hangi Hesaba:</label>
-        <select id="toAcc">
-            <option value="Garanti">Garanti BBVA</option>
-            <option value="Ziraat">Ziraat Bankası</option>
-            <option value="İş Bankası">İş Bankası</option>
-            <option value="Nakit">Nakit</option>
-        </select>
-        <input type="number" id="transAmount" placeholder="Aktarılacak Tutar">
-        <button class="btn-add" style="background:#10b981" onclick="makeTransfer()">Transferi Tamamla</button>
+        <select id="fromAcc"></select>
+        <div style="text-align:center; font-size:12px; margin:5px 0;">👇 Transfer Et 👇</div>
+        <select id="toAcc"></select>
+        <input type="number" id="transAmount" placeholder="Tutar">
+        <button class="btn-add" style="background:#10b981" onclick="makeTransfer()">Aktarımı Tamamla</button>
     </div>
-
-    <div id="status" style="font-size:10px; text-align:center; color:#94a3b8; margin-top:10px;">Hazır</div>
 </div>
 
 <script>
-    let transactions = JSON.parse(localStorage.getItem('butce_v10_data')) || [];
+    let transactions = JSON.parse(localStorage.getItem('butce_v11_data')) || [];
+    let myBanks = JSON.parse(localStorage.getItem('butce_v11_banks')) || ["Nakit"];
     let currentTab = 'gider';
-    const accounts = ["Ziraat", "Garanti", "İş Bankası", "Nakit"];
 
-    function fmt(val) {
-        return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0 }).format(val) + " TL";
+    function fmt(val) { return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0 }).format(val) + " TL"; }
+
+    function toggleSettings() { document.getElementById('settings').classList.toggle('hidden'); renderBankSettings(); }
+
+    function addBank() {
+        const name = document.getElementById('newBankName').value.trim();
+        if(name && !myBanks.includes(name)) {
+            myBanks.push(name);
+            document.getElementById('newBankName').value = '';
+            saveBanks();
+            updateUI();
+        }
+    }
+
+    function removeBank(name) {
+        if(confirm(`${name} silinsin mi?`)) {
+            myBanks = myBanks.filter(b => b !== name);
+            saveBanks();
+            updateUI();
+        }
+    }
+
+    function saveBanks() {
+        localStorage.setItem('butce_v11_banks', JSON.stringify(myBanks));
+        renderBankSettings();
+        updateSelects();
+    }
+
+    function renderBankSettings() {
+        const container = document.getElementById('bankChips');
+        container.innerHTML = myBanks.map(b => `
+            <span class="bank-tag" style="background:#cbd5e1; display:flex; align-items:center; gap:5px;">
+                ${b} <i class="fas fa-times" onclick="removeBank('${b}')" style="cursor:pointer"></i>
+            </span>
+        `).join('');
+    }
+
+    function updateSelects() {
+        const selects = ['accountSelect', 'fromAcc', 'toAcc'];
+        selects.forEach(sId => {
+            const el = document.getElementById(sId);
+            const current = el.value;
+            el.innerHTML = myBanks.map(b => `<option value="${b}">${b}</option>`).join('');
+            if(myBanks.includes(current)) el.value = current;
+        });
     }
 
     function initMonthFilter() {
         const select = document.getElementById('monthFilter');
         const now = new Date();
-        const currentVal = select.value;
-        select.innerHTML = '';
         let months = [...new Set(transactions.map(t => {
             let d = new Date(t.date);
             return `${d.getFullYear()}-${d.getMonth()}`;
         }))];
         months.push(`${now.getFullYear()}-${now.getMonth()}`);
-        [...new Set(months)].sort().reverse().forEach(m => {
+        select.innerHTML = [...new Set(months)].sort().reverse().map(m => {
             let [y, mon] = m.split('-');
-            let opt = document.createElement('option');
-            opt.value = m;
-            opt.text = `${y} - ${Number(mon)+1}. Ay`;
-            if(m === `${now.getFullYear()}-${now.getMonth()}`) opt.selected = true;
-            select.appendChild(opt);
-        });
+            return `<option value="${m}" ${m === `${now.getFullYear()}-${now.getMonth()}` ? 'selected' : ''}>${y} - ${Number(mon)+1}. Ay</option>`;
+        }).join('');
     }
 
     function updateUI() {
         const list = document.getElementById('list');
         const filter = document.getElementById('monthFilter').value;
         let mIn = 0, mOut = 0, allNet = 0;
-        let bankBalances = {};
-        accounts.forEach(a => bankBalances[a] = 0);
+        let balances = {};
+        myBanks.forEach(b => balances[b] = 0);
 
         list.innerHTML = '';
-        transactions.sort((a,b) => new Date(b.date) - new Date(a.date));
-
-        transactions.forEach((t, i) => {
+        transactions.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach((t, i) => {
             const val = parseFloat(t.amount);
             const tDate = new Date(t.date);
             const tKey = `${tDate.getFullYear()}-${tDate.getMonth()}`;
 
-            // Bakiyeleri Hesapla
-            if(t.type === 'gelir') {
-                bankBalances[t.acc] += val;
-                allNet += val;
-            } else if(t.type === 'gider') {
-                bankBalances[t.acc] -= val;
-                allNet -= val;
-            } else if(t.type === 'transfer') {
-                bankBalances[t.from] -= val;
-                bankBalances[t.to] += val;
-            }
+            if(t.type === 'gelir') { balances[t.acc] = (balances[t.acc]||0) + val; allNet += val; }
+            else if(t.type === 'gider') { balances[t.acc] = (balances[t.acc]||0) - val; allNet -= val; }
+            else if(t.type === 'transfer') { balances[t.from] -= val; balances[t.to] += val; }
 
-            // Liste ve Ay Özeti
-            if(filter === tKey && t.type !== 'transfer') {
+            if(filter === tKey && t.type === currentTab) {
                 if(t.type === 'gelir') mIn += val; else mOut += val;
-                if(t.type === currentTab) {
-                    list.innerHTML += `
-                        <div class="item">
-                            <div style="flex:1">
-                                <div style="font-weight:600;font-size:13px">${t.desc}</div>
-                                <span class="bank-tag">${t.acc}</span>
-                            </div>
-                            <div style="font-weight:700;color:${t.type === 'gelir' ? '#10b981' : '#ef4444'}">${fmt(val)}</div>
-                            <i class="fas fa-trash" onclick="deleteItem(${i})" style="margin-left:10px;color:#cbd5e1;cursor:pointer"></i>
-                        </div>`;
-                }
+                list.innerHTML += `
+                    <div class="item">
+                        <div style="flex:1">
+                            <div style="font-weight:600;font-size:13px">${t.desc}</div>
+                            <span class="bank-tag">${t.acc}</span>
+                        </div>
+                        <div style="font-weight:700;color:${t.type === 'gelir' ? '#10b981' : '#ef4444'}">${fmt(val)}</div>
+                        <i class="fas fa-trash" onclick="deleteItem(${i})" style="margin-left:10px;color:#cbd5e1;cursor:pointer"></i>
+                    </div>`;
+            } else if(filter === tKey) {
+                if(t.type === 'gelir') mIn += val; else if(t.type === 'gider') mOut += val;
             }
         });
 
-        // Banka Görünümü
-        const bankView = document.getElementById('bankView');
-        bankView.innerHTML = '';
-        for(let bank in bankBalances) {
-            bankView.innerHTML += `<div class="bank-item"><span>${bank}</span><b>${fmt(bankBalances[bank])}</b></div>`;
-        }
+        document.getElementById('bankView').innerHTML = myBanks.map(b => `
+            <div class="bank-item"><span>${b}</span><b>${fmt(balances[b] || 0)}</b></div>
+        `).join('');
 
         document.getElementById('mIn').innerText = fmt(mIn);
         document.getElementById('mOut').innerText = fmt(mOut);
         document.getElementById('monthNet').innerText = fmt(mIn - mOut);
         document.getElementById('allNet').innerText = fmt(allNet);
-        localStorage.setItem('butce_v10_data', JSON.stringify(transactions));
+        localStorage.setItem('butce_v11_data', JSON.stringify(transactions));
     }
 
     function switchTab(tab) {
         currentTab = tab;
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('t-' + tab).classList.add('active');
-        
         document.getElementById('addForm').classList.toggle('hidden', tab !== 'ekle');
         document.getElementById('transferForm').classList.toggle('hidden', tab !== 'transfer');
         document.getElementById('listContainer').classList.toggle('hidden', tab === 'ekle' || tab === 'transfer');
@@ -208,55 +209,25 @@
     }
 
     function addItem() {
-        const d = document.getElementById('date').value, desc = document.getElementById('desc').value, am = document.getElementById('amount').value, ty = document.getElementById('type').value, acc = document.getElementById('account').value;
+        const d = document.getElementById('date').value, desc = document.getElementById('desc').value, am = document.getElementById('amount').value, ty = document.getElementById('type').value, acc = document.getElementById('accountSelect').value;
         if(!d || !desc || !am) return alert("Eksik!");
         transactions.unshift({ desc, amount: am, type: ty, acc, date: new Date(d).toISOString() });
-        switchTab(ty); sync('save');
+        switchTab(ty);
     }
 
     function makeTransfer() {
-        const from = document.getElementById('fromAcc').value;
-        const to = document.getElementById('toAcc').value;
-        const am = document.getElementById('transAmount').value;
-        if(!am || from === to) return alert("Hatalı transfer!");
-        
-        transactions.unshift({
-            desc: `${from} -> ${to} Transfer`,
-            amount: am,
-            type: 'transfer',
-            from, to,
-            date: new Date().toISOString()
-        });
-        alert("Transfer Yapıldı!");
+        const from = document.getElementById('fromAcc').value, to = document.getElementById('toAcc').value, am = document.getElementById('transAmount').value;
+        if(!am || from === to) return alert("Geçersiz transfer!");
+        transactions.unshift({ desc: `${from} ➔ ${to}`, amount: am, type: 'transfer', from, to, date: new Date().toISOString() });
         document.getElementById('transAmount').value = '';
-        switchTab('gider'); sync('save');
+        switchTab('gider');
     }
 
-    function deleteItem(i) { if(confirm("Silinsin mi?")) { transactions.splice(i, 1); updateUI(); sync('save'); } }
-
-    async function sync(action = 'save') {
-        const token = document.getElementById('ghToken').value;
-        const id = document.getElementById('gistId').value;
-        if(!token || !id) return;
-        try {
-            if(action === 'save') {
-                await fetch(`https://api.github.com/gists/${id}`, {
-                    method: 'PATCH',
-                    headers: { 'Authorization': `token ${token}` },
-                    body: JSON.stringify({ files: { "butce_v10.json": { content: JSON.stringify(transactions) } } })
-                });
-            } else {
-                const res = await fetch(`https://api.github.com/gists/${id}`, { headers: { 'Authorization': `token ${token}` } });
-                const data = await res.json();
-                if(data.files["butce_v10.json"]) transactions = JSON.parse(data.files["butce_v10.json"].content);
-            }
-            initMonthFilter(); updateUI();
-        } catch (e) { console.error(e); }
-    }
+    function deleteItem(i) { if(confirm("Silinsin mi?")) { transactions.splice(i, 1); updateUI(); } }
 
     window.onload = () => {
         document.getElementById('date').valueAsDate = new Date();
-        initMonthFilter(); updateUI();
+        updateSelects(); initMonthFilter(); updateUI();
     };
 </script>
 </body>
