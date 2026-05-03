@@ -52,6 +52,40 @@
             width: 100%; margin-top: 5px;
         }
         .help-text { font-size: 10px; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
+
+        /* Autocomplete öneriler */
+        #descSuggestions {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-top: -2px;
+            max-height: 160px; overflow-y: auto; display: none;
+        }
+        .suggestion-item {
+            padding: 9px 12px; font-size: 12px; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #f1f5f9; color: #334155;
+        }
+        .suggestion-item:last-child { border-bottom: none; }
+        .suggestion-item:hover { background: #f8fafc; }
+        .sug-meta { font-size: 10px; color: #94a3b8; }
+
+        /* Tekrar eden özet kutusu */
+        .recurring-box {
+            background: #fafafa; border: 1px solid #e2e8f0;
+            border-radius: 12px; margin-bottom: 10px; overflow: hidden;
+        }
+        .recurring-header {
+            padding: 8px 12px; font-size: 11px; font-weight: 700;
+            color: #475569; display: flex; justify-content: space-between;
+            cursor: pointer; user-select: none; background: #f1f5f9;
+        }
+        .recurring-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 7px 12px; font-size: 11px; border-bottom: 1px solid #f1f5f9;
+        }
+        .recurring-row:last-child { border-bottom: none; }
+        .rec-name { color: #334155; font-weight: 500; flex: 1; }
+        .rec-count { font-size: 9px; background: #e2e8f0; color: #64748b; padding: 1px 5px; border-radius: 10px; margin: 0 6px; }
+        .rec-total { font-weight: 700; }
     </style>
 </head>
 <body>
@@ -133,12 +167,21 @@
         <button class="tab-btn" id="t-ekle" onclick="switchTab('ekle')">Yeni</button>
     </div>
 
+    <!-- Tekrar Eden Özet -->
+    <div id="recurringBox" class="recurring-box hidden">
+        <div class="recurring-header" onclick="toggleRecurring()">
+            <span>🔁 Tekrar Eden İşlemler</span>
+            <span id="recurringToggleIcon">▲</span>
+        </div>
+        <div id="recurringList"></div>
+    </div>
+
     <div id="listContainer"><div id="list"></div></div>
 
     <div id="addForm" class="form-group hidden">
         <input type="date" id="date">
-        <input type="text" id="desc" placeholder="Açıklama" list="history-list">
-        <datalist id="history-list"></datalist>
+        <input type="text" id="desc" placeholder="Açıklama" autocomplete="off" oninput="showSuggestions(this.value)" onblur="hideSuggestions()">
+        <div id="descSuggestions"></div>
         <input type="number" id="amount" placeholder="Tutar">
         <select id="accountSelect"></select>
         <select id="type"><option value="gider">Gider</option><option value="gelir">Gelir</option></select>
@@ -322,7 +365,94 @@
         });
     }
 
-    // ── Ay Filtresi ────────────────────────────────────────────────────────
+    // ── Açıklama Autocomplete ──────────────────────────────────────────────
+    let suggestionVisible = false;
+
+    function buildDescHistory() {
+        // Tüm işlemlerden benzersiz açıklamaları çıkar, kullanım sayısına göre sırala
+        const counts = {};
+        transactions.forEach(t => {
+            if (t.type === 'transfer') return;
+            const key = t.desc.trim().toLowerCase();
+            if (!counts[key]) counts[key] = { label: t.desc, count: 0, lastType: t.type };
+            counts[key].count++;
+            counts[key].lastType = t.type;
+        });
+        return Object.values(counts).sort((a, b) => b.count - a.count);
+    }
+
+    function showSuggestions(val) {
+        const box = document.getElementById('descSuggestions');
+        if (!val || val.length < 1) { box.style.display = 'none'; return; }
+        const history = buildDescHistory();
+        const filtered = history.filter(h => h.label.toLowerCase().includes(val.toLowerCase())).slice(0, 6);
+        if (filtered.length === 0) { box.style.display = 'none'; return; }
+        box.innerHTML = filtered.map(h => `
+            <div class="suggestion-item" onmousedown="selectSuggestion('${h.label.replace(/'/g,"\\'")}')">
+                <span>${h.label}</span>
+                <span class="sug-meta">${h.count}x · ${h.lastType === 'gelir' ? '↑' : '↓'}</span>
+            </div>
+        `).join('');
+        box.style.display = 'block';
+        suggestionVisible = true;
+    }
+
+    function selectSuggestion(val) {
+        document.getElementById('desc').value = val;
+        document.getElementById('descSuggestions').style.display = 'none';
+        suggestionVisible = false;
+    }
+
+    function hideSuggestions() {
+        setTimeout(() => {
+            document.getElementById('descSuggestions').style.display = 'none';
+        }, 150);
+    }
+
+    // ── Tekrar Eden İşlemler Özeti ─────────────────────────────────────────
+    let recurringOpen = true;
+
+    function toggleRecurring() {
+        recurringOpen = !recurringOpen;
+        document.getElementById('recurringList').style.display = recurringOpen ? 'block' : 'none';
+        document.getElementById('recurringToggleIcon').textContent = recurringOpen ? '▲' : '▼';
+    }
+
+    function renderRecurring(filter) {
+        const box = document.getElementById('recurringBox');
+        const listEl = document.getElementById('recurringList');
+
+        // Seçili aydaki currentTab tipindeki işlemleri grupla
+        const groups = {};
+        transactions.forEach(t => {
+            if (t.type !== currentTab) return;
+            const tDate = new Date(t.date);
+            const tKey  = `${tDate.getFullYear()}-${tDate.getMonth()}`;
+            if (tKey !== filter) return;
+            const key = t.desc.trim().toLowerCase();
+            if (!groups[key]) groups[key] = { label: t.desc, total: 0, count: 0 };
+            groups[key].total += parseFloat(t.amount);
+            groups[key].count++;
+        });
+
+        // Sadece 2+ kez geçenleri göster
+        const recurring = Object.values(groups).filter(g => g.count >= 2).sort((a, b) => b.total - a.total);
+
+        if (recurring.length === 0) { box.classList.add('hidden'); return; }
+
+        box.classList.remove('hidden');
+        const color = currentTab === 'gelir' ? '#10b981' : '#ef4444';
+        listEl.innerHTML = recurring.map(g => `
+            <div class="recurring-row">
+                <span class="rec-name">${g.label}</span>
+                <span class="rec-count">${g.count}x</span>
+                <span class="rec-total" style="color:${color}">${fmt(g.total)}</span>
+            </div>
+        `).join('');
+        listEl.style.display = recurringOpen ? 'block' : 'none';
+    }
+
+
     function initMonthFilter() {
         const select = document.getElementById('monthFilter');
         const now    = new Date();
@@ -385,6 +515,7 @@
         document.getElementById('monthNet').innerText = fmt(mIn - mOut);
         document.getElementById('allNet').innerText   = fmt(allNet);
 
+        renderRecurring(filter);
         localStorage.setItem('butce_v12_data', JSON.stringify(transactions));
     }
 
