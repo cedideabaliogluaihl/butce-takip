@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçem v11 - Dinamik Hesaplar</title>
+    <title>Bütçem v12 - Gist Sync</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root { --p: #4f46e5; --s: #10b981; --d: #ef4444; --bg: #f8fafc; }
@@ -24,24 +24,90 @@
         .hidden { display: none; }
         .bank-tag { font-size: 9px; background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; display: inline-block; }
         .settings-box { background: #f1f5f9; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px dashed #cbd5e1; }
+
+        /* Sync Status Bar */
+        #syncBar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 7px 12px; border-radius: 10px; margin-bottom: 12px;
+            font-size: 11px; font-weight: 600; transition: all 0.3s;
+            background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;
+        }
+        #syncBar.syncing { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+        #syncBar.ok      { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+        #syncBar.err     { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+        #syncBar.warn    { background: #fffbeb; color: #d97706; border-color: #fde68a; }
+
+        /* Gist Settings section */
+        .gist-section { border-top: 1px dashed #cbd5e1; margin-top: 10px; padding-top: 10px; }
+        .gist-section label { font-size: 11px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px; margin-top: 6px; }
+        .gist-section input { font-size: 11px; padding: 7px 10px; }
+        .btn-save-gist {
+            background: #1e293b; color: white; border: none; padding: 8px 14px;
+            border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 600;
+            width: 100%; margin-top: 8px;
+        }
+        .btn-pull {
+            background: #7c3aed; color: white; border: none; padding: 8px 14px;
+            border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 600;
+            width: 100%; margin-top: 5px;
+        }
+        .help-text { font-size: 10px; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
     </style>
 </head>
 <body>
 
 <div class="app">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3 style="margin:0; font-size:0.9rem;">Bütçem v11</h3>
-        <button onclick="toggleSettings()" style="border:none; background:none; color:#64748b;"><i class="fas fa-university"></i> Hesap Ayarları</button>
+        <h3 style="margin:0; font-size:0.9rem;">Bütçem v12</h3>
+        <button onclick="toggleSettings()" style="border:none; background:none; color:#64748b; cursor:pointer;">
+            <i class="fas fa-cog"></i> Ayarlar
+        </button>
     </div>
 
-    <!-- Dinamik Hesap Yönetimi -->
+    <!-- Sync Status Bar -->
+    <div id="syncBar">
+        <span id="syncIcon"><i class="fas fa-circle" style="font-size:8px; margin-right:5px;"></i></span>
+        <span id="syncMsg">Gist bağlantısı yapılandırılmadı</span>
+        <span id="syncTime" style="opacity:0.6; font-size:10px;"></span>
+    </div>
+
+    <!-- Settings Panel -->
     <div id="settings" class="settings-box hidden">
-        <div style="font-weight:700; font-size:12px; margin-bottom:8px;">Hesap/Banka Ekle</div>
+
+        <!-- Banka Yönetimi -->
+        <div style="font-weight:700; font-size:12px; margin-bottom:8px;">
+            <i class="fas fa-university" style="color:var(--p)"></i> Hesap/Banka Ekle
+        </div>
         <div style="display:flex; gap:5px;">
             <input type="text" id="newBankName" placeholder="Örn: Garanti" style="margin:0">
-            <button onclick="addBank()" style="background:var(--s); color:white; border:none; padding:0 15px; border-radius:8px;">Ekle</button>
+            <button onclick="addBank()" style="background:var(--s); color:white; border:none; padding:0 15px; border-radius:8px; cursor:pointer; white-space:nowrap;">Ekle</button>
         </div>
         <div id="bankChips" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:5px;"></div>
+
+        <!-- GitHub Gist Ayarları -->
+        <div class="gist-section">
+            <div style="font-weight:700; font-size:12px; margin-bottom:4px;">
+                <i class="fab fa-github" style="color:#1e293b"></i> GitHub Gist Senkronizasyonu
+            </div>
+            <p class="help-text">
+                Token almak için: GitHub → Settings → Developer Settings → Personal Access Tokens → Fine-grained → <b>Gist</b> iznini seç.<br>
+                Gist ID: gist.github.com adresinden yeni bir <b>private gist</b> oluştur, URL'deki ID'yi kopyala.
+            </p>
+
+            <label>GitHub Token</label>
+            <input type="password" id="gistToken" placeholder="ghp_xxxxxxxxxxxxxxxx" autocomplete="off">
+
+            <label>Gist ID</label>
+            <input type="text" id="gistId" placeholder="abc123def456...">
+
+            <button class="btn-save-gist" onclick="saveGistSettings()">
+                <i class="fas fa-save"></i> Kaydet & Bağlan
+            </button>
+            <button class="btn-pull" onclick="pullFromGist()">
+                <i class="fas fa-cloud-download-alt"></i> Gist'ten Yükle (üzerine yaz)
+            </button>
+            <p class="help-text" style="color:#dc2626;">⚠️ "Gist'ten Yükle" mevcut lokal verinin üzerine yazar!</p>
+        </div>
     </div>
 
     <div class="summary-card">
@@ -89,17 +155,134 @@
 </div>
 
 <script>
-    let transactions = JSON.parse(localStorage.getItem('butce_v11_data')) || [];
-    let myBanks = JSON.parse(localStorage.getItem('butce_v11_banks')) || ["Nakit"];
-    let currentTab = 'gider';
+    // ── State ──────────────────────────────────────────────────────────────
+    let transactions = JSON.parse(localStorage.getItem('butce_v12_data'))  || [];
+    let myBanks      = JSON.parse(localStorage.getItem('butce_v12_banks')) || ["Nakit"];
+    let gistToken    = localStorage.getItem('butce_v12_gist_token') || '';
+    let gistId       = localStorage.getItem('butce_v12_gist_id')    || '';
+    let currentTab   = 'gider';
+    const GIST_FILE  = 'butce.json';
 
-    function fmt(val) { return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0 }).format(val) + " TL"; }
+    // ── Formatla ───────────────────────────────────────────────────────────
+    function fmt(val) {
+        return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0 }).format(val) + " TL";
+    }
 
-    function toggleSettings() { document.getElementById('settings').classList.toggle('hidden'); renderBankSettings(); }
+    // ── Sync Status Bar ────────────────────────────────────────────────────
+    function setSyncStatus(state, msg, time) {
+        const bar  = document.getElementById('syncBar');
+        const icon = document.getElementById('syncIcon');
+        const msgEl = document.getElementById('syncMsg');
+        const timeEl = document.getElementById('syncTime');
 
+        bar.className = '';
+        bar.classList.add(state);
+        msgEl.textContent = msg;
+        timeEl.textContent = time || '';
+
+        const icons = {
+            syncing: 'fas fa-spinner fa-spin',
+            ok:      'fas fa-check-circle',
+            err:     'fas fa-exclamation-circle',
+            warn:    'fas fa-exclamation-triangle',
+        };
+        icon.innerHTML = `<i class="${icons[state] || 'fas fa-circle'}" style="margin-right:5px;"></i>`;
+    }
+
+    function nowStr() {
+        return new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // ── GitHub Gist API ────────────────────────────────────────────────────
+    async function pushToGist() {
+        if (!gistToken || !gistId) {
+            setSyncStatus('warn', 'Gist yapılandırılmadı', '');
+            return;
+        }
+        setSyncStatus('syncing', 'Senkronize ediliyor…', '');
+        const payload = {
+            transactions,
+            banks: myBanks,
+            updatedAt: new Date().toISOString()
+        };
+        try {
+            const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `token ${gistToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    files: {
+                        [GIST_FILE]: { content: JSON.stringify(payload, null, 2) }
+                    }
+                })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setSyncStatus('ok', 'Gist\'e kaydedildi', nowStr());
+        } catch(e) {
+            setSyncStatus('err', 'Senkronizasyon hatası: ' + e.message, '');
+        }
+    }
+
+    async function pullFromGist() {
+        if (!gistToken || !gistId) {
+            alert('Önce token ve Gist ID gir!');
+            return;
+        }
+        if (!confirm('Gist\'teki veriler lokal verilerin üzerine yazılacak. Devam?')) return;
+
+        setSyncStatus('syncing', 'Gist\'ten yükleniyor…', '');
+        try {
+            const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+                headers: { 'Authorization': `token ${gistToken}` }
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const file = data.files[GIST_FILE];
+            if (!file) throw new Error(`"${GIST_FILE}" dosyası Gist'te bulunamadı`);
+            const parsed = JSON.parse(file.content);
+            transactions = parsed.transactions || [];
+            myBanks      = parsed.banks        || ["Nakit"];
+            localStorage.setItem('butce_v12_data',  JSON.stringify(transactions));
+            localStorage.setItem('butce_v12_banks', JSON.stringify(myBanks));
+            updateSelects();
+            initMonthFilter();
+            updateUI();
+            setSyncStatus('ok', 'Gist\'ten yüklendi', nowStr());
+        } catch(e) {
+            setSyncStatus('err', 'Yükleme hatası: ' + e.message, '');
+        }
+    }
+
+    // ── Gist Ayarlarını Kaydet ─────────────────────────────────────────────
+    function saveGistSettings() {
+        const t = document.getElementById('gistToken').value.trim();
+        const id = document.getElementById('gistId').value.trim();
+        if (!t || !id) { alert('Token ve Gist ID boş olamaz!'); return; }
+        gistToken = t;
+        gistId    = id;
+        localStorage.setItem('butce_v12_gist_token', t);
+        localStorage.setItem('butce_v12_gist_id',    id);
+        document.getElementById('settings').classList.add('hidden');
+        pushToGist(); // bağlantıyı test et
+    }
+
+    // ── Ayarlar Paneli ─────────────────────────────────────────────────────
+    function toggleSettings() {
+        const s = document.getElementById('settings');
+        s.classList.toggle('hidden');
+        if (!s.classList.contains('hidden')) {
+            document.getElementById('gistToken').value = gistToken;
+            document.getElementById('gistId').value    = gistId;
+            renderBankSettings();
+        }
+    }
+
+    // ── Banka Yönetimi ─────────────────────────────────────────────────────
     function addBank() {
         const name = document.getElementById('newBankName').value.trim();
-        if(name && !myBanks.includes(name)) {
+        if (name && !myBanks.includes(name)) {
             myBanks.push(name);
             document.getElementById('newBankName').value = '';
             saveBanks();
@@ -108,7 +291,7 @@
     }
 
     function removeBank(name) {
-        if(confirm(`${name} silinsin mi?`)) {
+        if (confirm(`${name} silinsin mi?`)) {
             myBanks = myBanks.filter(b => b !== name);
             saveBanks();
             updateUI();
@@ -116,7 +299,7 @@
     }
 
     function saveBanks() {
-        localStorage.setItem('butce_v11_banks', JSON.stringify(myBanks));
+        localStorage.setItem('butce_v12_banks', JSON.stringify(myBanks));
         renderBankSettings();
         updateSelects();
     }
@@ -131,31 +314,34 @@
     }
 
     function updateSelects() {
-        const selects = ['accountSelect', 'fromAcc', 'toAcc'];
-        selects.forEach(sId => {
+        ['accountSelect','fromAcc','toAcc'].forEach(sId => {
             const el = document.getElementById(sId);
             const current = el.value;
             el.innerHTML = myBanks.map(b => `<option value="${b}">${b}</option>`).join('');
-            if(myBanks.includes(current)) el.value = current;
+            if (myBanks.includes(current)) el.value = current;
         });
     }
 
+    // ── Ay Filtresi ────────────────────────────────────────────────────────
     function initMonthFilter() {
         const select = document.getElementById('monthFilter');
-        const now = new Date();
-        let months = [...new Set(transactions.map(t => {
-            let d = new Date(t.date);
+        const now    = new Date();
+        const keys   = transactions.map(t => {
+            const d = new Date(t.date);
             return `${d.getFullYear()}-${d.getMonth()}`;
-        }))];
-        months.push(`${now.getFullYear()}-${now.getMonth()}`);
-        select.innerHTML = [...new Set(months)].sort().reverse().map(m => {
-            let [y, mon] = m.split('-');
-            return `<option value="${m}" ${m === `${now.getFullYear()}-${now.getMonth()}` ? 'selected' : ''}>${y} - ${Number(mon)+1}. Ay</option>`;
+        });
+        keys.push(`${now.getFullYear()}-${now.getMonth()}`);
+        const unique = [...new Set(keys)].sort().reverse();
+        select.innerHTML = unique.map(m => {
+            const [y, mon] = m.split('-');
+            const isCurrent = m === `${now.getFullYear()}-${now.getMonth()}`;
+            return `<option value="${m}" ${isCurrent ? 'selected' : ''}>${y} - ${Number(mon)+1}. Ay</option>`;
         }).join('');
     }
 
+    // ── Ana UI Güncelle ────────────────────────────────────────────────────
     function updateUI() {
-        const list = document.getElementById('list');
+        const list   = document.getElementById('list');
         const filter = document.getElementById('monthFilter').value;
         let mIn = 0, mOut = 0, allNet = 0;
         let balances = {};
@@ -163,71 +349,102 @@
 
         list.innerHTML = '';
         transactions.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach((t, i) => {
-            const val = parseFloat(t.amount);
+            const val  = parseFloat(t.amount);
             const tDate = new Date(t.date);
-            const tKey = `${tDate.getFullYear()}-${tDate.getMonth()}`;
+            const tKey  = `${tDate.getFullYear()}-${tDate.getMonth()}`;
 
-            if(t.type === 'gelir') { balances[t.acc] = (balances[t.acc]||0) + val; allNet += val; }
-            else if(t.type === 'gider') { balances[t.acc] = (balances[t.acc]||0) - val; allNet -= val; }
-            else if(t.type === 'transfer') { balances[t.from] -= val; balances[t.to] += val; }
+            if (t.type === 'gelir')    { balances[t.acc]  = (balances[t.acc]  || 0) + val; allNet += val; }
+            else if (t.type === 'gider')   { balances[t.acc]  = (balances[t.acc]  || 0) - val; allNet -= val; }
+            else if (t.type === 'transfer') { balances[t.from] -= val; balances[t.to] += val; }
 
-            if(filter === tKey && t.type === currentTab) {
-                if(t.type === 'gelir') mIn += val; else mOut += val;
+            if (filter === tKey && t.type === currentTab) {
+                if (t.type === 'gelir') mIn += val; else mOut += val;
+                const dateLabel = tDate.toLocaleDateString('tr-TR', { day:'numeric', month:'short' });
                 list.innerHTML += `
                     <div class="item">
                         <div style="flex:1">
                             <div style="font-weight:600;font-size:13px">${t.desc}</div>
-                            <span class="bank-tag">${t.acc}</span>
+                            <span class="bank-tag">${t.acc || (t.from + ' ➔ ' + t.to)}</span>
+                            <span style="font-size:9px; color:#94a3b8; margin-left:4px;">${dateLabel}</span>
                         </div>
                         <div style="font-weight:700;color:${t.type === 'gelir' ? '#10b981' : '#ef4444'}">${fmt(val)}</div>
                         <i class="fas fa-trash" onclick="deleteItem(${i})" style="margin-left:10px;color:#cbd5e1;cursor:pointer"></i>
                     </div>`;
-            } else if(filter === tKey) {
-                if(t.type === 'gelir') mIn += val; else if(t.type === 'gider') mOut += val;
+            } else if (filter === tKey) {
+                if (t.type === 'gelir') mIn += val;
+                else if (t.type === 'gider') mOut += val;
             }
         });
 
-        document.getElementById('bankView').innerHTML = myBanks.map(b => `
-            <div class="bank-item"><span>${b}</span><b>${fmt(balances[b] || 0)}</b></div>
-        `).join('');
+        document.getElementById('bankView').innerHTML = myBanks.map(b =>
+            `<div class="bank-item"><span>${b}</span><b>${fmt(balances[b] || 0)}</b></div>`
+        ).join('');
 
-        document.getElementById('mIn').innerText = fmt(mIn);
-        document.getElementById('mOut').innerText = fmt(mOut);
+        document.getElementById('mIn').innerText      = fmt(mIn);
+        document.getElementById('mOut').innerText     = fmt(mOut);
         document.getElementById('monthNet').innerText = fmt(mIn - mOut);
-        document.getElementById('allNet').innerText = fmt(allNet);
-        localStorage.setItem('butce_v11_data', JSON.stringify(transactions));
+        document.getElementById('allNet').innerText   = fmt(allNet);
+
+        localStorage.setItem('butce_v12_data', JSON.stringify(transactions));
     }
 
+    // ── Tab Yönetimi ───────────────────────────────────────────────────────
     function switchTab(tab) {
         currentTab = tab;
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('t-' + tab).classList.add('active');
-        document.getElementById('addForm').classList.toggle('hidden', tab !== 'ekle');
+        document.getElementById('addForm').classList.toggle('hidden',      tab !== 'ekle');
         document.getElementById('transferForm').classList.toggle('hidden', tab !== 'transfer');
         document.getElementById('listContainer').classList.toggle('hidden', tab === 'ekle' || tab === 'transfer');
         updateUI();
     }
 
+    // ── Kayıt Ekle ─────────────────────────────────────────────────────────
     function addItem() {
-        const d = document.getElementById('date').value, desc = document.getElementById('desc').value, am = document.getElementById('amount').value, ty = document.getElementById('type').value, acc = document.getElementById('accountSelect').value;
-        if(!d || !desc || !am) return alert("Eksik!");
+        const d   = document.getElementById('date').value;
+        const desc = document.getElementById('desc').value;
+        const am  = document.getElementById('amount').value;
+        const ty  = document.getElementById('type').value;
+        const acc = document.getElementById('accountSelect').value;
+        if (!d || !desc || !am) return alert("Eksik alan var!");
         transactions.unshift({ desc, amount: am, type: ty, acc, date: new Date(d).toISOString() });
+        pushToGist();
         switchTab(ty);
     }
 
+    // ── Transfer ───────────────────────────────────────────────────────────
     function makeTransfer() {
-        const from = document.getElementById('fromAcc').value, to = document.getElementById('toAcc').value, am = document.getElementById('transAmount').value;
-        if(!am || from === to) return alert("Geçersiz transfer!");
+        const from = document.getElementById('fromAcc').value;
+        const to   = document.getElementById('toAcc').value;
+        const am   = document.getElementById('transAmount').value;
+        if (!am || from === to) return alert("Geçersiz transfer!");
         transactions.unshift({ desc: `${from} ➔ ${to}`, amount: am, type: 'transfer', from, to, date: new Date().toISOString() });
         document.getElementById('transAmount').value = '';
+        pushToGist();
         switchTab('gider');
     }
 
-    function deleteItem(i) { if(confirm("Silinsin mi?")) { transactions.splice(i, 1); updateUI(); } }
+    // ── Sil ────────────────────────────────────────────────────────────────
+    function deleteItem(i) {
+        if (confirm("Silinsin mi?")) {
+            transactions.splice(i, 1);
+            updateUI();
+            pushToGist();
+        }
+    }
 
+    // ── Başlangıç ─────────────────────────────────────────────────────────
     window.onload = () => {
         document.getElementById('date').valueAsDate = new Date();
-        updateSelects(); initMonthFilter(); updateUI();
+        updateSelects();
+        initMonthFilter();
+        updateUI();
+
+        if (gistToken && gistId) {
+            setSyncStatus('ok', 'Gist bağlı', '');
+        } else {
+            setSyncStatus('warn', 'Gist yapılandırılmadı — Ayarlar\'a gir', '');
+        }
     };
 </script>
 </body>
