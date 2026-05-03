@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçem v9.4</title>
+    <title>Bütçem v9.5</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root { --p: #4f46e5; --s: #10b981; --d: #ef4444; --bg: #f8fafc; }
@@ -22,7 +22,8 @@
         .tabs { display: flex; gap: 5px; background: #f1f5f9; padding: 5px; border-radius: 12px; margin-bottom: 15px; }
         .tab-btn { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; background: transparent; color: #64748b; }
         .tab-btn.active { background: #fff; color: var(--p); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .item { display: flex; align-items: center; padding: 12px; border-radius: 12px; margin-bottom: 8px; background: #fff; border: 1px solid #f1f5f9; }
+        .item { display: flex; align-items: center; padding: 12px; border-radius: 12px; margin-bottom: 8px; background: #fff; border: 1px solid #f1f5f9; transition: 0.2s; }
+        .item:active { background: #f1f5f9; }
         .form-group { background: #f8fafc; padding: 15px; border-radius: 16px; border: 1px solid #e2e8f0; }
         input, select { width: 100%; padding: 12px; margin: 6px 0; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; outline: none; box-sizing: border-box; }
         .btn-add { background: var(--p); color: white; border: none; padding: 14px; border-radius: 12px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 10px; }
@@ -30,13 +31,14 @@
         .settings { display: none; background: #f1f5f9; padding: 10px; border-radius: 12px; margin-bottom: 10px; font-size: 11px; }
         .settings.active { display: block; }
         .hidden { display: none; }
+        .filter-badge { background: #fbbf24; color: #000; padding: 2px 8px; border-radius: 20px; font-size: 10px; margin-bottom: 5px; display: inline-block; }
     </style>
 </head>
 <body>
 
 <div class="app">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3 style="margin:0; font-size:1rem;">Bütçem v9.4</h3>
+        <h3 style="margin:0; font-size:1rem;">Bütçem v9.5</h3>
         <button onclick="document.getElementById('settings').classList.toggle('active')" style="border:none; background:none; color:#64748b;"><i class="fas fa-cog"></i></button>
     </div>
 
@@ -48,20 +50,21 @@
 
     <div class="summary-card">
         <div class="card-top">
-            <select id="monthFilter" class="filter-select" onchange="updateUI()"></select>
+            <div id="activeFilter" class="hidden"><span class="filter-badge" id="filterText"></span></div>
+            <select id="monthFilter" class="filter-select" onchange="resetKeywordFilter()"></select>
             <div id="monthNet" class="summary-val">0 TL</div>
             <div style="display: flex; justify-content: space-between; font-size: 11px; opacity:0.9">
-                <span>Ay Gelir: <b id="mIn" style="color:#4ade80">0</b></span>
-                <span>Ay Gider: <b id="mOut" style="color:#f87171">0</b></span>
+                <span><span id="mInText">Ay Gelir</span>: <b id="mIn" style="color:#4ade80">0</b></span>
+                <span><span id="mOutText">Ay Gider</span>: <b id="mOut" style="color:#f87171">0</b></span>
             </div>
         </div>
         <div class="card-bottom">
             <div class="stats-row">
-                <span>Toplam Gelir (Yıl):</span>
+                <span id="allInLabel">Toplam Gelir (Yıl):</span>
                 <span id="allIn" style="font-weight:700; color:#4ade80">0 TL</span>
             </div>
             <div class="stats-row">
-                <span>Toplam Gider (Yıl):</span>
+                <span id="allOutLabel">Toplam Gider (Yıl):</span>
                 <span id="allOut" style="font-weight:700; color:#f87171">0 TL</span>
             </div>
             <div class="stats-row" style="margin-top:5px; padding-top:5px; border-top:1px solid rgba(255,255,255,0.1)">
@@ -81,7 +84,7 @@
 
     <div id="addForm" class="form-group hidden">
         <input type="date" id="date">
-        <input type="text" id="desc" placeholder="Açıklama" list="history-list">
+        <input type="text" id="desc" placeholder="Açıklama (Örn: Yakıt)" list="history-list">
         <datalist id="history-list"></datalist>
         <input type="number" id="amount" placeholder="Tutar">
         <select id="type"><option value="gider">Gider</option><option value="gelir">Gelir</option></select>
@@ -91,15 +94,30 @@
 </div>
 
 <script>
-    let transactions = JSON.parse(localStorage.getItem('butce_v94_data')) || [];
+    let transactions = JSON.parse(localStorage.getItem('butce_v95_data')) || [];
     let currentTab = 'gider';
+    let filterKeyword = null; // Özel arama için
     const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
     function fmt(val) {
-        return new Intl.NumberFormat('tr-TR', { 
-            minimumFractionDigits: 0, 
-            maximumFractionDigits: 2 
-        }).format(val) + " TL";
+        return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(val) + " TL";
+    }
+
+    function resetKeywordFilter() {
+        filterKeyword = null;
+        document.getElementById('activeFilter').classList.add('hidden');
+        updateUI();
+    }
+
+    function setKeywordFilter(keyword) {
+        if (filterKeyword === keyword) {
+            resetKeywordFilter();
+        } else {
+            filterKeyword = keyword;
+            document.getElementById('filterText').innerText = `Filtre: ${keyword} (Tüm Yıl)`;
+            document.getElementById('activeFilter').classList.remove('hidden');
+            updateUI();
+        }
     }
 
     function initMonthFilter() {
@@ -127,7 +145,7 @@
 
     function updateUI() {
         const list = document.getElementById('list');
-        const filter = document.getElementById('monthFilter').value;
+        const filterMonth = document.getElementById('monthFilter').value;
         let mIn = 0, mOut = 0, allInTotal = 0, allOutTotal = 0;
         list.innerHTML = '';
 
@@ -138,39 +156,59 @@
             const val = parseFloat(t.amount);
             const tKey = `${tDate.getFullYear()}-${tDate.getMonth()}`;
 
-            // Yıllık Toplamlar (Tüm zamanlar)
-            if(t.type === 'gelir') allInTotal += val; else allOutTotal += val;
-
-            // Ay Bazlı Filtreleme
-            if(filter === tKey) {
-                if(t.type === 'gelir') mIn += val; else mOut += val;
-                if(t.type === currentTab) {
-                    list.innerHTML += `
-                        <div class="item">
-                            <div style="flex:1">
-                                <div style="font-weight:600;font-size:14px">${t.desc}</div>
-                                <div style="font-size:10px;color:#94a3b8">${tDate.toLocaleDateString('tr-TR')}</div>
-                            </div>
-                            <div style="font-weight:700;color:${t.type === 'gelir' ? '#10b981' : '#ef4444'}">
-                                ${fmt(val)}
-                            </div>
-                            <i class="fas fa-trash" onclick="deleteItem(${i})" style="margin-left:15px;color:#cbd5e1;cursor:pointer"></i>
-                        </div>`;
+            // EĞER FİLTRE VARSA: Sadece o kelimeyi içerenleri hesapla
+            if (filterKeyword) {
+                if (t.desc.toLowerCase() === filterKeyword.toLowerCase()) {
+                    if (t.type === 'gelir') allInTotal += val; else allOutTotal += val;
+                    // Ay filtresine de uyuyorsa ay özetine ekle
+                    if (filterMonth === tKey) {
+                        if (t.type === 'gelir') mIn += val; else mOut += val;
+                    }
+                    // Listeye ekle (Tüm yıl gösterilir)
+                    if (t.type === currentTab) {
+                        renderItem(list, t, i, tDate, val);
+                    }
+                }
+            } else {
+                // NORMAL MOD:
+                if(t.type === 'gelir') allInTotal += val; else allOutTotal += val;
+                if(filterMonth === tKey) {
+                    if(t.type === 'gelir') mIn += val; else mOut += val;
+                    if(t.type === currentTab) {
+                        renderItem(list, t, i, tDate, val);
+                    }
                 }
             }
         });
 
-        // Üst Kısım: Seçili Ayın Verileri
+        // UI Güncelleme
+        document.getElementById('mInText').innerText = filterKeyword ? "Filtre Gelir" : "Ay Gelir";
+        document.getElementById('mOutText').innerText = filterKeyword ? "Filtre Gider" : "Ay Gider";
+        document.getElementById('allInLabel').innerText = filterKeyword ? `Toplam ${filterKeyword} Geliri:` : "Toplam Gelir (Yıl):";
+        document.getElementById('allOutLabel').innerText = filterKeyword ? `Toplam ${filterKeyword} Gideri:` : "Toplam Gider (Yıl):";
+
         document.getElementById('mIn').innerText = fmt(mIn);
         document.getElementById('mOut').innerText = fmt(mOut);
         document.getElementById('monthNet').innerText = fmt(mIn - mOut);
-        
-        // Alt Kısım: Yıllık Toplamlar
         document.getElementById('allIn').innerText = fmt(allInTotal);
         document.getElementById('allOut').innerText = fmt(allOutTotal);
         document.getElementById('allNet').innerText = fmt(allInTotal - allOutTotal);
         
-        localStorage.setItem('butce_v94_data', JSON.stringify(transactions));
+        localStorage.setItem('butce_v95_data', JSON.stringify(transactions));
+    }
+
+    function renderItem(list, t, i, tDate, val) {
+        list.innerHTML += `
+            <div class="item">
+                <div style="flex:1" onclick="setKeywordFilter('${t.desc}')">
+                    <div style="font-weight:600;font-size:14px">${t.desc} <i class="fas fa-search" style="font-size:10px; color:#cbd5e1"></i></div>
+                    <div style="font-size:10px;color:#94a3b8">${tDate.toLocaleDateString('tr-TR')}</div>
+                </div>
+                <div style="font-weight:700;color:${t.type === 'gelir' ? '#10b981' : '#ef4444'}">
+                    ${fmt(val)}
+                </div>
+                <i class="fas fa-trash" onclick="deleteItem(${i})" style="margin-left:15px;color:#cbd5e1;cursor:pointer"></i>
+            </div>`;
     }
 
     function switchTab(tab) {
@@ -190,7 +228,7 @@
         const token = document.getElementById('ghToken').value;
         const id = document.getElementById('gistId').value;
         if(!token || !id) return;
-        document.getElementById('status').innerText = "Güncelleniyor...";
+        document.getElementById('status').innerText = "Senkronize ediliyor...";
         try {
             if(action === 'save') {
                 await fetch(`https://api.github.com/gists/${id}`, {
@@ -206,18 +244,18 @@
             initMonthFilter(); updateUI();
             document.getElementById('status').innerText = "Bulut Güncel ✅";
             localStorage.setItem('gh_token', token); localStorage.setItem('gh_gist_id', id);
-        } catch (e) { document.getElementById('status').innerText = "Hata!"; }
+        } catch (e) { document.getElementById('status').innerText = "Bağlantı Hatası!"; }
     }
 
     function addItem() {
         const d = document.getElementById('date').value, desc = document.getElementById('desc').value, am = document.getElementById('amount').value, ty = document.getElementById('type').value;
-        if(!d || !desc || !am) return alert("Eksik!");
+        if(!d || !desc || !am) return alert("Lütfen tüm alanları doldurun!");
         transactions.unshift({ desc, amount: am, type: ty, date: new Date(d).toISOString() });
         document.getElementById('desc').value = ''; document.getElementById('amount').value = '';
-        initMonthFilter(); switchTab(ty); sync('save');
+        initMonthFilter(); resetKeywordFilter(); switchTab(ty); sync('save');
     }
 
-    function deleteItem(i) { if(confirm("Silinsin mi?")) { transactions.splice(i, 1); initMonthFilter(); updateUI(); sync('save'); } }
+    function deleteItem(i) { if(confirm("Bu işlemi silmek istediğine emin misin?")) { transactions.splice(i, 1); updateUI(); sync('save'); } }
 
     window.onload = async () => {
         document.getElementById('ghToken').value = localStorage.getItem('gh_token') || '';
