@@ -3,46 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçem v9.5</title>
+    <title>Bütçem v10 - Varlık Yönetimi</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root { --p: #4f46e5; --s: #10b981; --d: #ef4444; --bg: #f8fafc; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 10px; display: flex; justify-content: center; }
-        .app { width: 100%; max-width: 360px; background: #fff; border-radius: 24px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); min-height: 90vh; }
+        .app { width: 100%; max-width: 380px; background: #fff; border-radius: 24px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); min-height: 95vh; }
         .summary-card { background: #1e293b; color: white; border-radius: 20px; margin-bottom: 15px; overflow: hidden; }
         .card-top { padding: 15px; text-align: center; }
         .card-bottom { background: rgba(0,0,0,0.3); padding: 12px 15px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); }
-        .stats-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-        .filter-select { 
-            background: #0f172a; color: #f1f5f9; border: 1px solid rgba(255,255,255,0.2); 
-            border-radius: 10px; padding: 8px; font-size: 13px; width: 100%; cursor: pointer; 
-            outline: none; margin-bottom: 12px; font-weight: 600; text-align: center;
-        }
+        .bank-list { background: rgba(255,255,255,0.05); padding: 10px; border-top: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .bank-item { font-size: 10px; display: flex; justify-content: space-between; padding: 4px 8px; background: rgba(0,0,0,0.2); border-radius: 6px; }
         .summary-val { font-size: 24px; font-weight: 700; margin: 5px 0; color: #fff; }
-        .tabs { display: flex; gap: 5px; background: #f1f5f9; padding: 5px; border-radius: 12px; margin-bottom: 15px; }
-        .tab-btn { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; background: transparent; color: #64748b; }
+        .tabs { display: flex; gap: 4px; background: #f1f5f9; padding: 4px; border-radius: 12px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; border: none; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 600; background: transparent; color: #64748b; }
         .tab-btn.active { background: #fff; color: var(--p); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .item { display: flex; align-items: center; padding: 12px; border-radius: 12px; margin-bottom: 8px; background: #fff; border: 1px solid #f1f5f9; transition: 0.2s; }
-        .item:active { background: #f1f5f9; }
-        .form-group { background: #f8fafc; padding: 15px; border-radius: 16px; border: 1px solid #e2e8f0; }
-        input, select { width: 100%; padding: 12px; margin: 6px 0; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; outline: none; box-sizing: border-box; }
-        .btn-add { background: var(--p); color: white; border: none; padding: 14px; border-radius: 12px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 10px; }
-        #status { font-size: 10px; text-align: center; color: #94a3b8; margin-top: 10px; }
-        .settings { display: none; background: #f1f5f9; padding: 10px; border-radius: 12px; margin-bottom: 10px; font-size: 11px; }
-        .settings.active { display: block; }
+        .item { display: flex; align-items: center; padding: 10px; border-radius: 12px; margin-bottom: 8px; background: #fff; border: 1px solid #f1f5f9; }
+        .form-group { background: #f8fafc; padding: 12px; border-radius: 16px; border: 1px solid #e2e8f0; }
+        input, select { width: 100%; padding: 10px; margin: 4px 0; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; }
+        .btn-add { background: var(--p); color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 8px; }
         .hidden { display: none; }
-        .filter-badge { background: #fbbf24; color: #000; padding: 2px 8px; border-radius: 20px; font-size: 10px; margin-bottom: 5px; display: inline-block; }
+        .bank-tag { font-size: 9px; background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; margin-top: 2px; display: inline-block; }
     </style>
 </head>
 <body>
 
 <div class="app">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3 style="margin:0; font-size:1rem;">Bütçem v9.5</h3>
+        <h3 style="margin:0; font-size:0.9rem;">Bütçem v10</h3>
         <button onclick="document.getElementById('settings').classList.toggle('active')" style="border:none; background:none; color:#64748b;"><i class="fas fa-cog"></i></button>
     </div>
 
-    <div id="settings" class="settings">
+    <div id="settings" class="settings hidden" style="font-size:11px; background:#f1f5f9; padding:10px; border-radius:12px; margin-bottom:10px;">
         <input type="password" id="ghToken" placeholder="GitHub Token">
         <input type="text" id="gistId" placeholder="Gist ID">
         <button onclick="sync('fetch')" style="width:100%; padding:5px; margin-top:5px;">Verileri Getir</button>
@@ -50,25 +42,19 @@
 
     <div class="summary-card">
         <div class="card-top">
-            <div id="activeFilter" class="hidden"><span class="filter-badge" id="filterText"></span></div>
-            <select id="monthFilter" class="filter-select" onchange="resetKeywordFilter()"></select>
+            <select id="monthFilter" class="filter-select" style="background:#0f172a; color:white; border:none; border-radius:8px; padding:5px; font-size:12px;" onchange="updateUI()"></select>
             <div id="monthNet" class="summary-val">0 TL</div>
-            <div style="display: flex; justify-content: space-between; font-size: 11px; opacity:0.9">
-                <span><span id="mInText">Ay Gelir</span>: <b id="mIn" style="color:#4ade80">0</b></span>
-                <span><span id="mOutText">Ay Gider</span>: <b id="mOut" style="color:#f87171">0</b></span>
+            <div style="display: flex; justify-content: space-between; font-size: 10px; opacity:0.8">
+                <span>Gelir: <b id="mIn" style="color:#4ade80">0</b></span>
+                <span>Gider: <b id="mOut" style="color:#f87171">0</b></span>
             </div>
         </div>
+        <div id="bankView" class="bank-list">
+            <!-- Banka bakiyeleri buraya gelecek -->
+        </div>
         <div class="card-bottom">
-            <div class="stats-row">
-                <span id="allInLabel">Toplam Gelir (Yıl):</span>
-                <span id="allIn" style="font-weight:700; color:#4ade80">0 TL</span>
-            </div>
-            <div class="stats-row">
-                <span id="allOutLabel">Toplam Gider (Yıl):</span>
-                <span id="allOut" style="font-weight:700; color:#f87171">0 TL</span>
-            </div>
-            <div class="stats-row" style="margin-top:5px; padding-top:5px; border-top:1px solid rgba(255,255,255,0.1)">
-                <span>Net Kalan Bakiye:</span>
+            <div style="display:flex; justify-content:space-between">
+                <span>Net Varlık (Toplam):</span>
                 <span id="allNet" style="font-weight:700; color:#4ade80">0 TL</span>
             </div>
         </div>
@@ -77,47 +63,59 @@
     <div class="tabs">
         <button class="tab-btn active" id="t-gider" onclick="switchTab('gider')">Gider</button>
         <button class="tab-btn" id="t-gelir" onclick="switchTab('gelir')">Gelir</button>
+        <button class="tab-btn" id="t-transfer" onclick="switchTab('transfer')">Transfer</button>
         <button class="tab-btn" id="t-ekle" onclick="switchTab('ekle')">Yeni Ekle</button>
     </div>
 
     <div id="listContainer"><div id="list"></div></div>
 
+    <!-- Yeni Kayıt Formu -->
     <div id="addForm" class="form-group hidden">
         <input type="date" id="date">
-        <input type="text" id="desc" placeholder="Açıklama (Örn: Yakıt)" list="history-list">
+        <input type="text" id="desc" placeholder="Açıklama" list="history-list">
         <datalist id="history-list"></datalist>
         <input type="number" id="amount" placeholder="Tutar">
+        <select id="account">
+            <option value="Ziraat">Ziraat Bankası</option>
+            <option value="Garanti">Garanti BBVA</option>
+            <option value="İş Bankası">İş Bankası</option>
+            <option value="Nakit">Nakit</option>
+        </select>
         <select id="type"><option value="gider">Gider</option><option value="gelir">Gelir</option></select>
         <button class="btn-add" onclick="addItem()">Kaydet</button>
     </div>
-    <div id="status">Hazır</div>
+
+    <!-- Transfer Formu -->
+    <div id="transferForm" class="form-group hidden">
+        <h4 style="margin-top:0">Hesaplar Arası Aktar</h4>
+        <label style="font-size:11px">Hangi Hesaptan:</label>
+        <select id="fromAcc">
+            <option value="Ziraat">Ziraat Bankası</option>
+            <option value="Garanti">Garanti BBVA</option>
+            <option value="İş Bankası">İş Bankası</option>
+            <option value="Nakit">Nakit</option>
+        </select>
+        <label style="font-size:11px">Hangi Hesaba:</label>
+        <select id="toAcc">
+            <option value="Garanti">Garanti BBVA</option>
+            <option value="Ziraat">Ziraat Bankası</option>
+            <option value="İş Bankası">İş Bankası</option>
+            <option value="Nakit">Nakit</option>
+        </select>
+        <input type="number" id="transAmount" placeholder="Aktarılacak Tutar">
+        <button class="btn-add" style="background:#10b981" onclick="makeTransfer()">Transferi Tamamla</button>
+    </div>
+
+    <div id="status" style="font-size:10px; text-align:center; color:#94a3b8; margin-top:10px;">Hazır</div>
 </div>
 
 <script>
-    let transactions = JSON.parse(localStorage.getItem('butce_v95_data')) || [];
+    let transactions = JSON.parse(localStorage.getItem('butce_v10_data')) || [];
     let currentTab = 'gider';
-    let filterKeyword = null; // Özel arama için
-    const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+    const accounts = ["Ziraat", "Garanti", "İş Bankası", "Nakit"];
 
     function fmt(val) {
-        return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(val) + " TL";
-    }
-
-    function resetKeywordFilter() {
-        filterKeyword = null;
-        document.getElementById('activeFilter').classList.add('hidden');
-        updateUI();
-    }
-
-    function setKeywordFilter(keyword) {
-        if (filterKeyword === keyword) {
-            resetKeywordFilter();
-        } else {
-            filterKeyword = keyword;
-            document.getElementById('filterText').innerText = `Filtre: ${keyword} (Tüm Yıl)`;
-            document.getElementById('activeFilter').classList.remove('hidden');
-            updateUI();
-        }
+        return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0 }).format(val) + " TL";
     }
 
     function initMonthFilter() {
@@ -125,143 +123,140 @@
         const now = new Date();
         const currentVal = select.value;
         select.innerHTML = '';
-        
-        let availableMonths = transactions.map(t => {
+        let months = [...new Set(transactions.map(t => {
             let d = new Date(t.date);
             return `${d.getFullYear()}-${d.getMonth()}`;
-        });
-        availableMonths.push(`${now.getFullYear()}-${now.getMonth()}`);
-        
-        [...new Set(availableMonths)].sort().reverse().forEach(m => {
-            let [year, month] = m.split('-');
-            let option = document.createElement('option');
-            option.value = m;
-            option.text = `${monthNames[month]} ${year} Özeti`;
-            if(!currentVal && m === `${now.getFullYear()}-${now.getMonth()}`) option.selected = true;
-            else if(currentVal === m) option.selected = true;
-            select.appendChild(option);
+        }))];
+        months.push(`${now.getFullYear()}-${now.getMonth()}`);
+        [...new Set(months)].sort().reverse().forEach(m => {
+            let [y, mon] = m.split('-');
+            let opt = document.createElement('option');
+            opt.value = m;
+            opt.text = `${y} - ${Number(mon)+1}. Ay`;
+            if(m === `${now.getFullYear()}-${now.getMonth()}`) opt.selected = true;
+            select.appendChild(opt);
         });
     }
 
     function updateUI() {
         const list = document.getElementById('list');
-        const filterMonth = document.getElementById('monthFilter').value;
-        let mIn = 0, mOut = 0, allInTotal = 0, allOutTotal = 0;
-        list.innerHTML = '';
+        const filter = document.getElementById('monthFilter').value;
+        let mIn = 0, mOut = 0, allNet = 0;
+        let bankBalances = {};
+        accounts.forEach(a => bankBalances[a] = 0);
 
-        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        list.innerHTML = '';
+        transactions.sort((a,b) => new Date(b.date) - new Date(a.date));
 
         transactions.forEach((t, i) => {
-            const tDate = new Date(t.date);
             const val = parseFloat(t.amount);
+            const tDate = new Date(t.date);
             const tKey = `${tDate.getFullYear()}-${tDate.getMonth()}`;
 
-            // EĞER FİLTRE VARSA: Sadece o kelimeyi içerenleri hesapla
-            if (filterKeyword) {
-                if (t.desc.toLowerCase() === filterKeyword.toLowerCase()) {
-                    if (t.type === 'gelir') allInTotal += val; else allOutTotal += val;
-                    // Ay filtresine de uyuyorsa ay özetine ekle
-                    if (filterMonth === tKey) {
-                        if (t.type === 'gelir') mIn += val; else mOut += val;
-                    }
-                    // Listeye ekle (Tüm yıl gösterilir)
-                    if (t.type === currentTab) {
-                        renderItem(list, t, i, tDate, val);
-                    }
-                }
-            } else {
-                // NORMAL MOD:
-                if(t.type === 'gelir') allInTotal += val; else allOutTotal += val;
-                if(filterMonth === tKey) {
-                    if(t.type === 'gelir') mIn += val; else mOut += val;
-                    if(t.type === currentTab) {
-                        renderItem(list, t, i, tDate, val);
-                    }
+            // Bakiyeleri Hesapla
+            if(t.type === 'gelir') {
+                bankBalances[t.acc] += val;
+                allNet += val;
+            } else if(t.type === 'gider') {
+                bankBalances[t.acc] -= val;
+                allNet -= val;
+            } else if(t.type === 'transfer') {
+                bankBalances[t.from] -= val;
+                bankBalances[t.to] += val;
+            }
+
+            // Liste ve Ay Özeti
+            if(filter === tKey && t.type !== 'transfer') {
+                if(t.type === 'gelir') mIn += val; else mOut += val;
+                if(t.type === currentTab) {
+                    list.innerHTML += `
+                        <div class="item">
+                            <div style="flex:1">
+                                <div style="font-weight:600;font-size:13px">${t.desc}</div>
+                                <span class="bank-tag">${t.acc}</span>
+                            </div>
+                            <div style="font-weight:700;color:${t.type === 'gelir' ? '#10b981' : '#ef4444'}">${fmt(val)}</div>
+                            <i class="fas fa-trash" onclick="deleteItem(${i})" style="margin-left:10px;color:#cbd5e1;cursor:pointer"></i>
+                        </div>`;
                 }
             }
         });
 
-        // UI Güncelleme
-        document.getElementById('mInText').innerText = filterKeyword ? "Filtre Gelir" : "Ay Gelir";
-        document.getElementById('mOutText').innerText = filterKeyword ? "Filtre Gider" : "Ay Gider";
-        document.getElementById('allInLabel').innerText = filterKeyword ? `Toplam ${filterKeyword} Geliri:` : "Toplam Gelir (Yıl):";
-        document.getElementById('allOutLabel').innerText = filterKeyword ? `Toplam ${filterKeyword} Gideri:` : "Toplam Gider (Yıl):";
+        // Banka Görünümü
+        const bankView = document.getElementById('bankView');
+        bankView.innerHTML = '';
+        for(let bank in bankBalances) {
+            bankView.innerHTML += `<div class="bank-item"><span>${bank}</span><b>${fmt(bankBalances[bank])}</b></div>`;
+        }
 
         document.getElementById('mIn').innerText = fmt(mIn);
         document.getElementById('mOut').innerText = fmt(mOut);
         document.getElementById('monthNet').innerText = fmt(mIn - mOut);
-        document.getElementById('allIn').innerText = fmt(allInTotal);
-        document.getElementById('allOut').innerText = fmt(allOutTotal);
-        document.getElementById('allNet').innerText = fmt(allInTotal - allOutTotal);
-        
-        localStorage.setItem('butce_v95_data', JSON.stringify(transactions));
-    }
-
-    function renderItem(list, t, i, tDate, val) {
-        list.innerHTML += `
-            <div class="item">
-                <div style="flex:1" onclick="setKeywordFilter('${t.desc}')">
-                    <div style="font-weight:600;font-size:14px">${t.desc} <i class="fas fa-search" style="font-size:10px; color:#cbd5e1"></i></div>
-                    <div style="font-size:10px;color:#94a3b8">${tDate.toLocaleDateString('tr-TR')}</div>
-                </div>
-                <div style="font-weight:700;color:${t.type === 'gelir' ? '#10b981' : '#ef4444'}">
-                    ${fmt(val)}
-                </div>
-                <i class="fas fa-trash" onclick="deleteItem(${i})" style="margin-left:15px;color:#cbd5e1;cursor:pointer"></i>
-            </div>`;
+        document.getElementById('allNet').innerText = fmt(allNet);
+        localStorage.setItem('butce_v10_data', JSON.stringify(transactions));
     }
 
     function switchTab(tab) {
         currentTab = tab;
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('t-' + tab).classList.add('active');
+        
         document.getElementById('addForm').classList.toggle('hidden', tab !== 'ekle');
-        document.getElementById('listContainer').classList.toggle('hidden', tab === 'ekle');
-        if(tab === 'ekle') {
-            document.getElementById('date').valueAsDate = new Date();
-            const dl = document.getElementById('history-list');
-            dl.innerHTML = [...new Set(transactions.map(t => t.desc))].map(d => `<option value="${d}">`).join('');
-        } else { updateUI(); }
+        document.getElementById('transferForm').classList.toggle('hidden', tab !== 'transfer');
+        document.getElementById('listContainer').classList.toggle('hidden', tab === 'ekle' || tab === 'transfer');
+        updateUI();
     }
+
+    function addItem() {
+        const d = document.getElementById('date').value, desc = document.getElementById('desc').value, am = document.getElementById('amount').value, ty = document.getElementById('type').value, acc = document.getElementById('account').value;
+        if(!d || !desc || !am) return alert("Eksik!");
+        transactions.unshift({ desc, amount: am, type: ty, acc, date: new Date(d).toISOString() });
+        switchTab(ty); sync('save');
+    }
+
+    function makeTransfer() {
+        const from = document.getElementById('fromAcc').value;
+        const to = document.getElementById('toAcc').value;
+        const am = document.getElementById('transAmount').value;
+        if(!am || from === to) return alert("Hatalı transfer!");
+        
+        transactions.unshift({
+            desc: `${from} -> ${to} Transfer`,
+            amount: am,
+            type: 'transfer',
+            from, to,
+            date: new Date().toISOString()
+        });
+        alert("Transfer Yapıldı!");
+        document.getElementById('transAmount').value = '';
+        switchTab('gider'); sync('save');
+    }
+
+    function deleteItem(i) { if(confirm("Silinsin mi?")) { transactions.splice(i, 1); updateUI(); sync('save'); } }
 
     async function sync(action = 'save') {
         const token = document.getElementById('ghToken').value;
         const id = document.getElementById('gistId').value;
         if(!token || !id) return;
-        document.getElementById('status').innerText = "Senkronize ediliyor...";
         try {
             if(action === 'save') {
                 await fetch(`https://api.github.com/gists/${id}`, {
                     method: 'PATCH',
                     headers: { 'Authorization': `token ${token}` },
-                    body: JSON.stringify({ files: { "butce_data.json": { content: JSON.stringify(transactions, null, 2) } } })
+                    body: JSON.stringify({ files: { "butce_v10.json": { content: JSON.stringify(transactions) } } })
                 });
             } else {
                 const res = await fetch(`https://api.github.com/gists/${id}`, { headers: { 'Authorization': `token ${token}` } });
                 const data = await res.json();
-                if(data.files["butce_data.json"]) transactions = JSON.parse(data.files["butce_data.json"].content);
+                if(data.files["butce_v10.json"]) transactions = JSON.parse(data.files["butce_v10.json"].content);
             }
             initMonthFilter(); updateUI();
-            document.getElementById('status').innerText = "Bulut Güncel ✅";
-            localStorage.setItem('gh_token', token); localStorage.setItem('gh_gist_id', id);
-        } catch (e) { document.getElementById('status').innerText = "Bağlantı Hatası!"; }
+        } catch (e) { console.error(e); }
     }
 
-    function addItem() {
-        const d = document.getElementById('date').value, desc = document.getElementById('desc').value, am = document.getElementById('amount').value, ty = document.getElementById('type').value;
-        if(!d || !desc || !am) return alert("Lütfen tüm alanları doldurun!");
-        transactions.unshift({ desc, amount: am, type: ty, date: new Date(d).toISOString() });
-        document.getElementById('desc').value = ''; document.getElementById('amount').value = '';
-        initMonthFilter(); resetKeywordFilter(); switchTab(ty); sync('save');
-    }
-
-    function deleteItem(i) { if(confirm("Bu işlemi silmek istediğine emin misin?")) { transactions.splice(i, 1); updateUI(); sync('save'); } }
-
-    window.onload = async () => {
-        document.getElementById('ghToken').value = localStorage.getItem('gh_token') || '';
-        document.getElementById('gistId').value = localStorage.getItem('gh_gist_id') || '';
+    window.onload = () => {
+        document.getElementById('date').valueAsDate = new Date();
         initMonthFilter(); updateUI();
-        if(localStorage.getItem('gh_token')) await sync('fetch');
     };
 </script>
 </body>
