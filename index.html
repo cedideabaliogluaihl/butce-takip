@@ -207,10 +207,32 @@
 
 <script>
     // ── State ──────────────────────────────────────────────────────────────
-    let transactions = JSON.parse(localStorage.getItem('butce_v12_data'))  || [];
-    let myBanks      = JSON.parse(localStorage.getItem('butce_v12_banks')) || ["Nakit"];
-    let gistToken    = localStorage.getItem('butce_v12_gist_token') || '';
-    let gistId       = localStorage.getItem('butce_v12_gist_id')    || '';
+    // Sabit anahtar — sürüm değişse de veriler kaybolmaz
+    const KEY_DATA  = 'butce_data';
+    const KEY_BANKS = 'butce_banks';
+    const KEY_TOKEN = 'butce_gist_token';
+    const KEY_ID    = 'butce_gist_id';
+
+    // Eski sürümlerden göç: v11 veya v12 anahtarı varsa yeni anahtara taşı
+    (function migrate() {
+        const oldKeys = [
+            ['butce_v11_data',  'butce_v12_data',  KEY_DATA],
+            ['butce_v11_banks', 'butce_v12_banks', KEY_BANKS],
+            ['butce_v11_gist_token', 'butce_v12_gist_token', KEY_TOKEN],
+            ['butce_v11_gist_id',    'butce_v12_gist_id',    KEY_ID],
+        ];
+        oldKeys.forEach(([old1, old2, newKey]) => {
+            if (!localStorage.getItem(newKey)) {
+                const val = localStorage.getItem(old2) || localStorage.getItem(old1);
+                if (val) localStorage.setItem(newKey, val);
+            }
+        });
+    })();
+
+    let transactions = JSON.parse(localStorage.getItem(KEY_DATA))  || [];
+    let myBanks      = JSON.parse(localStorage.getItem(KEY_BANKS)) || ["Nakit"];
+    let gistToken    = localStorage.getItem(KEY_TOKEN) || '';
+    let gistId       = localStorage.getItem(KEY_ID)    || '';
     let currentTab   = 'gider';
     const GIST_FILE  = 'butce.json';
 
@@ -270,6 +292,8 @@
                 })
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const now = new Date().toISOString();
+            localStorage.setItem('butce_local_updated', now);
             setSyncStatus('ok', 'Gist\'e kaydedildi', nowStr());
         } catch(e) {
             setSyncStatus('err', 'Senkronizasyon hatası: ' + e.message, '');
@@ -295,8 +319,8 @@
             const parsed = JSON.parse(file.content);
             transactions = parsed.transactions || [];
             myBanks      = parsed.banks        || ["Nakit"];
-            localStorage.setItem('butce_v12_data',  JSON.stringify(transactions));
-            localStorage.setItem('butce_v12_banks', JSON.stringify(myBanks));
+            localStorage.setItem(KEY_DATA,  JSON.stringify(transactions));
+            localStorage.setItem(KEY_BANKS, JSON.stringify(myBanks));
             updateSelects();
             initMonthFilter();
             updateUI();
@@ -313,10 +337,10 @@
         if (!t || !id) { alert('Token ve Gist ID boş olamaz!'); return; }
         gistToken = t;
         gistId    = id;
-        localStorage.setItem('butce_v12_gist_token', t);
-        localStorage.setItem('butce_v12_gist_id',    id);
+        localStorage.setItem(KEY_TOKEN, t);
+        localStorage.setItem(KEY_ID,    id);
         document.getElementById('settings').classList.add('hidden');
-        pushToGist(); // bağlantıyı test et
+        pushToGist(); // lokal veriyi Gist'e yaz
     }
 
     // ── Ayarlar Paneli ─────────────────────────────────────────────────────
@@ -350,7 +374,7 @@
     }
 
     function saveBanks() {
-        localStorage.setItem('butce_v12_banks', JSON.stringify(myBanks));
+        localStorage.setItem(KEY_BANKS, JSON.stringify(myBanks));
         renderBankSettings();
         updateSelects();
     }
@@ -529,7 +553,7 @@
         document.getElementById('allOut').innerText   = fmt(allOut);
 
         renderRecurring();
-        localStorage.setItem('butce_v12_data', JSON.stringify(transactions));
+        localStorage.setItem(KEY_DATA, JSON.stringify(transactions));
     }
 
     // ── Tab Yönetimi ───────────────────────────────────────────────────────
@@ -591,31 +615,45 @@
             const file = data.files[GIST_FILE];
             if (!file) return;
             const parsed = JSON.parse(file.content);
+            const remoteTransactions = parsed.transactions || [];
             const remoteUpdatedAt = parsed.updatedAt || null;
+
+            // ÖNEMLİ: Gist boşsa lokal veriyi ASLA silme
+            if (remoteTransactions.length === 0 && transactions.length > 0) {
+                // Lokal veri var, Gist boş → lokal veriyi Gist'e yaz
+                setSyncStatus('syncing', 'Lokal veri Gist\'e aktarılıyor…', '');
+                await pushToGist();
+                return;
+            }
 
             // İlk yükleme veya Gist daha yeni ise uygula
             if (lastGistUpdatedAt === null || remoteUpdatedAt !== lastGistUpdatedAt) {
                 lastGistUpdatedAt = remoteUpdatedAt;
 
-                // Sadece gerçekten farklıysa güncelle (lokal push'tan gelen aynı veriyi tekrar yazma)
-                const localHash = JSON.stringify(transactions) + JSON.stringify(myBanks);
-                const remoteHash = JSON.stringify(parsed.transactions || []) + JSON.stringify(parsed.banks || []);
+                const localHash  = JSON.stringify(transactions) + JSON.stringify(myBanks);
+                const remoteHash = JSON.stringify(remoteTransactions) + JSON.stringify(parsed.banks || []);
 
                 if (localHash !== remoteHash) {
-                    transactions = parsed.transactions || [];
-                    myBanks      = parsed.banks        || ["Nakit"];
-                    localStorage.setItem('butce_v12_data',  JSON.stringify(transactions));
-                    localStorage.setItem('butce_v12_banks', JSON.stringify(myBanks));
-                    updateSelects();
-                    initMonthFilter();
-                    updateUI();
-                    setSyncStatus('ok', 'Güncellendi ↓ Gist\'ten çekildi', nowStr());
+                    // Hangisi daha yeni? updatedAt karşılaştır
+                    const localUpdatedAt = localStorage.getItem('butce_local_updated') || '0';
+                    if (remoteUpdatedAt && remoteUpdatedAt > localUpdatedAt) {
+                        transactions = remoteTransactions;
+                        myBanks      = parsed.banks || ["Nakit"];
+                        localStorage.setItem(KEY_DATA,  JSON.stringify(transactions));
+                        localStorage.setItem(KEY_BANKS, JSON.stringify(myBanks));
+                        updateSelects();
+                        initMonthFilter();
+                        updateUI();
+                        setSyncStatus('ok', 'Güncellendi ↓ Gist\'ten çekildi', nowStr());
+                    } else {
+                        // Lokal daha yeni → Gist'e yaz
+                        await pushToGist();
+                    }
                 } else {
                     setSyncStatus('ok', 'Güncel — Gist ile eşleşti', nowStr());
                 }
             }
         } catch(e) {
-            // Sessiz hata — polling sırasında kullanıcıyı rahatsız etme
             console.warn('silentPull hata:', e.message);
         }
     }
