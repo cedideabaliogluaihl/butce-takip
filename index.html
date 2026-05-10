@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bütçem v12 - Gist Sync</title>
+    <title>Bütçem v12 - Supabase Sync</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root { --p: #4f46e5; --s: #10b981; --d: #ef4444; --bg: #f8fafc; }
@@ -567,7 +567,10 @@
             const remote = row.data;
             const remoteUpdatedAt = remote?.updated_at || null;
 
-            if (lastRemoteUpdatedAt === remoteUpdatedAt) return;
+            if (lastRemoteUpdatedAt === remoteUpdatedAt) {
+                setSyncStatus('ok', 'Bağlı', nowStr());
+                return;
+            }
 
             // Supabase boşsa lokal veriyi koru
             if (remote?.transactions?.length === 0 && transactions.length > 0) {
