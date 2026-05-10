@@ -557,59 +557,39 @@
     }
 
     // ── Otomatik Pull (sayfa açılışı + her 30 sn) ──────────────────────────
-    let lastGistUpdatedAt = null; // Gist'teki son bilinen updatedAt
-
     async function silentPull() {
-        if (!gistToken || !gistId) return;
         try {
-            const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-                headers: { 'Authorization': `token ${gistToken}` }
-            });
-            if (!res.ok) return;
-            const data = await res.json();
-            const file = data.files[GIST_FILE];
-            if (!file) return;
-            const parsed = JSON.parse(file.content);
-            const remoteTransactions = parsed.transactions || [];
-            const remoteUpdatedAt = parsed.updatedAt || null;
+            const rows = await supaFetch(`${SUPA_TABLE}?select=id,data&limit=1`);
+            if (!rows.length) { await pushToSupabase(); return; }
 
-            // ÖNEMLİ: Gist boşsa lokal veriyi ASLA silme
-            if (remoteTransactions.length === 0 && transactions.length > 0) {
-                // Lokal veri var, Gist boş → lokal veriyi Gist'e yaz
-                setSyncStatus('syncing', 'Lokal veri Gist\'e aktarılıyor…', '');
-                await pushToGist();
-                return;
+            const row = rows[0];
+            supaRowId = row.id;
+            const remote = row.data;
+            const remoteUpdatedAt = remote?.updated_at || null;
+
+            if (lastRemoteUpdatedAt === remoteUpdatedAt) return;
+
+            // Supabase boşsa lokal veriyi koru
+            if (remote?.transactions?.length === 0 && transactions.length > 0) {
+                await pushToSupabase(); return;
             }
 
-            // İlk yükleme veya Gist daha yeni ise uygula
-            if (lastGistUpdatedAt === null || remoteUpdatedAt !== lastGistUpdatedAt) {
-                lastGistUpdatedAt = remoteUpdatedAt;
-
-                const localHash  = JSON.stringify(transactions) + JSON.stringify(myBanks);
-                const remoteHash = JSON.stringify(remoteTransactions) + JSON.stringify(parsed.banks || []);
-
-                if (localHash !== remoteHash) {
-                    // Hangisi daha yeni? updatedAt karşılaştır
-                    const localUpdatedAt = localStorage.getItem('butce_local_updated') || '0';
-                    if (remoteUpdatedAt && remoteUpdatedAt > localUpdatedAt) {
-                        transactions = remoteTransactions;
-                        myBanks      = parsed.banks || ["Nakit"];
-                        localStorage.setItem(KEY_DATA,  JSON.stringify(transactions));
-                        localStorage.setItem(KEY_BANKS, JSON.stringify(myBanks));
-                        updateSelects();
-                        initMonthFilter();
-                        updateUI();
-                        setSyncStatus('ok', 'Güncellendi ↓ Gist\'ten çekildi', nowStr());
-                    } else {
-                        // Lokal daha yeni → Gist'e yaz
-                        await pushToGist();
-                    }
-                } else {
-                    setSyncStatus('ok', 'Güncel — Gist ile eşleşti', nowStr());
-                }
+            const localUpdated = localStorage.getItem('butce_local_updated') || '0';
+            if (remoteUpdatedAt && remoteUpdatedAt > localUpdated) {
+                transactions = remote.transactions || [];
+                myBanks      = remote.banks        || ["Nakit"];
+                localStorage.setItem(KEY_DATA,  JSON.stringify(transactions));
+                localStorage.setItem(KEY_BANKS, JSON.stringify(myBanks));
+                lastRemoteUpdatedAt = remoteUpdatedAt;
+                updateSelects(); initMonthFilter(); updateUI();
+                setSyncStatus('ok', '↓ Güncellendi', nowStr());
+            } else {
+                lastRemoteUpdatedAt = remoteUpdatedAt;
+                setSyncStatus('ok', 'Bağlı', nowStr());
             }
         } catch(e) {
-            console.warn('silentPull hata:', e.message);
+            setSyncStatus('err', 'Bağlantı hatası: ' + e.message, '');
+            console.warn('silentPull:', e.message);
         }
     }
 
