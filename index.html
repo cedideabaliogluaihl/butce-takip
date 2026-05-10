@@ -117,31 +117,6 @@
             <button onclick="addBank()" style="background:var(--s); color:white; border:none; padding:0 15px; border-radius:8px; cursor:pointer; white-space:nowrap;">Ekle</button>
         </div>
         <div id="bankChips" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:5px;"></div>
-
-        <!-- GitHub Gist Ayarları -->
-        <div class="gist-section">
-            <div style="font-weight:700; font-size:12px; margin-bottom:4px;">
-                <i class="fab fa-github" style="color:#1e293b"></i> GitHub Gist Senkronizasyonu
-            </div>
-            <p class="help-text">
-                Token almak için: GitHub → Settings → Developer Settings → Personal Access Tokens → Fine-grained → <b>Gist</b> iznini seç.<br>
-                Gist ID: gist.github.com adresinden yeni bir <b>private gist</b> oluştur, URL'deki ID'yi kopyala.
-            </p>
-
-            <label>GitHub Token</label>
-            <input type="password" id="gistToken" placeholder="ghp_xxxxxxxxxxxxxxxx" autocomplete="off">
-
-            <label>Gist ID</label>
-            <input type="text" id="gistId" placeholder="abc123def456...">
-
-            <button class="btn-save-gist" onclick="saveGistSettings()">
-                <i class="fas fa-save"></i> Kaydet & Bağlan
-            </button>
-            <button class="btn-pull" onclick="pullFromGist()">
-                <i class="fas fa-cloud-download-alt"></i> Gist'ten Yükle (üzerine yaz)
-            </button>
-            <p class="help-text" style="color:#dc2626;">⚠️ "Gist'ten Yükle" mevcut lokal verinin üzerine yazar!</p>
-        </div>
     </div>
 
     <div class="summary-card">
@@ -207,19 +182,19 @@
 
 <script>
     // ── State ──────────────────────────────────────────────────────────────
-    // Sabit anahtar — sürüm değişse de veriler kaybolmaz
     const KEY_DATA  = 'butce_data';
     const KEY_BANKS = 'butce_banks';
-    const KEY_TOKEN = 'butce_gist_token';
-    const KEY_ID    = 'butce_gist_id';
 
-    // Eski sürümlerden göç: v11 veya v12 anahtarı varsa yeni anahtara taşı
+    // Supabase config
+    const SUPA_URL = 'https://iawpahgpplwevvzdtiyu.supabase.co';
+    const SUPA_KEY = 'sb_publishable_MPsSi4uX9oLwIJc15GQzhQ_TJagWGDe';
+    const SUPA_TABLE = 'butce';
+
+    // Eski sürümlerden göç
     (function migrate() {
         const oldKeys = [
             ['butce_v11_data',  'butce_v12_data',  KEY_DATA],
             ['butce_v11_banks', 'butce_v12_banks', KEY_BANKS],
-            ['butce_v11_gist_token', 'butce_v12_gist_token', KEY_TOKEN],
-            ['butce_v11_gist_id',    'butce_v12_gist_id',    KEY_ID],
         ];
         oldKeys.forEach(([old1, old2, newKey]) => {
             if (!localStorage.getItem(newKey)) {
@@ -231,10 +206,9 @@
 
     let transactions = JSON.parse(localStorage.getItem(KEY_DATA))  || [];
     let myBanks      = JSON.parse(localStorage.getItem(KEY_BANKS)) || ["Nakit"];
-    let gistToken    = localStorage.getItem(KEY_TOKEN) || '';
-    let gistId       = localStorage.getItem(KEY_ID)    || '';
     let currentTab   = 'gider';
-    const GIST_FILE  = 'butce.json';
+    let supaRowId    = null; // Supabase'deki satır ID'si
+    let lastRemoteUpdatedAt = null;
 
     // ── Formatla ───────────────────────────────────────────────────────────
     function fmt(val) {
@@ -243,115 +217,96 @@
 
     // ── Sync Status Bar ────────────────────────────────────────────────────
     function setSyncStatus(state, msg, time) {
-        const bar  = document.getElementById('syncBar');
-        const icon = document.getElementById('syncIcon');
+        const bar   = document.getElementById('syncBar');
+        const icon  = document.getElementById('syncIcon');
         const msgEl = document.getElementById('syncMsg');
         const timeEl = document.getElementById('syncTime');
-
         bar.className = '';
         bar.classList.add(state);
         msgEl.textContent = msg;
         timeEl.textContent = time || '';
-
-        const icons = {
-            syncing: 'fas fa-spinner fa-spin',
-            ok:      'fas fa-check-circle',
-            err:     'fas fa-exclamation-circle',
-            warn:    'fas fa-exclamation-triangle',
-        };
-        icon.innerHTML = `<i class="${icons[state] || 'fas fa-circle'}" style="margin-right:5px;"></i>`;
+        const icons = { syncing:'fas fa-spinner fa-spin', ok:'fas fa-check-circle', err:'fas fa-exclamation-circle', warn:'fas fa-exclamation-triangle' };
+        icon.innerHTML = `<i class="${icons[state]||'fas fa-circle'}" style="margin-right:5px;"></i>`;
     }
 
-    function nowStr() {
-        return new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    function nowStr() { return new Date().toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' }); }
+
+    // ── Supabase API ───────────────────────────────────────────────────────
+    const supaHeaders = { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+
+    async function supaFetch(path, method='GET', body=null) {
+        const opts = { method, headers: supaHeaders };
+        if (body) opts.body = JSON.stringify(body);
+        const r = await fetch(SUPA_URL + '/rest/v1/' + path, opts);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
     }
 
-    // ── GitHub Gist API ────────────────────────────────────────────────────
-    async function pushToGist() {
-        if (!gistToken || !gistId) {
-            setSyncStatus('warn', 'Gist yapılandırılmadı', '');
-            return;
-        }
-        setSyncStatus('syncing', 'Senkronize ediliyor…', '');
-        const payload = {
-            transactions,
-            banks: myBanks,
-            updatedAt: new Date().toISOString()
-        };
+    async function pushToSupabase() {
+        setSyncStatus('syncing', 'Kaydediliyor…', '');
         try {
-            const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `token ${gistToken}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    files: {
-                        [GIST_FILE]: { content: JSON.stringify(payload, null, 2) }
-                    }
-                })
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const now = new Date().toISOString();
+            const payload = { transactions, banks: myBanks, updated_at: now };
+
+            if (supaRowId) {
+                // Güncelle
+                await supaFetch(`${SUPA_TABLE}?id=eq.${supaRowId}`, 'PATCH', { data: payload });
+            } else {
+                // İlk kayıt — mevcut satırı bul veya oluştur
+                const rows = await supaFetch(`${SUPA_TABLE}?select=id&limit=1`);
+                if (rows.length > 0) {
+                    supaRowId = rows[0].id;
+                    await supaFetch(`${SUPA_TABLE}?id=eq.${supaRowId}`, 'PATCH', { data: payload });
+                } else {
+                    const created = await supaFetch(SUPA_TABLE, 'POST', { data: payload });
+                    supaRowId = created[0]?.id;
+                }
+            }
+            lastRemoteUpdatedAt = now;
             localStorage.setItem('butce_local_updated', now);
-            setSyncStatus('ok', 'Gist\'e kaydedildi', nowStr());
+            setSyncStatus('ok', 'Kaydedildi', nowStr());
         } catch(e) {
-            setSyncStatus('err', 'Senkronizasyon hatası: ' + e.message, '');
+            setSyncStatus('err', 'Hata: ' + e.message, '');
         }
     }
 
-    async function pullFromGist() {
-        if (!gistToken || !gistId) {
-            alert('Önce token ve Gist ID gir!');
-            return;
-        }
-        if (!confirm('Gist\'teki veriler lokal verilerin üzerine yazılacak. Devam?')) return;
-
-        setSyncStatus('syncing', 'Gist\'ten yükleniyor…', '');
+    async function silentPull() {
         try {
-            const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-                headers: { 'Authorization': `token ${gistToken}` }
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            const file = data.files[GIST_FILE];
-            if (!file) throw new Error(`"${GIST_FILE}" dosyası Gist'te bulunamadı`);
-            const parsed = JSON.parse(file.content);
-            transactions = parsed.transactions || [];
-            myBanks      = parsed.banks        || ["Nakit"];
-            localStorage.setItem(KEY_DATA,  JSON.stringify(transactions));
-            localStorage.setItem(KEY_BANKS, JSON.stringify(myBanks));
-            updateSelects();
-            initMonthFilter();
-            updateUI();
-            setSyncStatus('ok', 'Gist\'ten yüklendi', nowStr());
-        } catch(e) {
-            setSyncStatus('err', 'Yükleme hatası: ' + e.message, '');
-        }
-    }
+            const rows = await supaFetch(`${SUPA_TABLE}?select=id,data&limit=1`);
+            if (!rows.length) { await pushToSupabase(); return; }
 
-    // ── Gist Ayarlarını Kaydet ─────────────────────────────────────────────
-    function saveGistSettings() {
-        const t = document.getElementById('gistToken').value.trim();
-        const id = document.getElementById('gistId').value.trim();
-        if (!t || !id) { alert('Token ve Gist ID boş olamaz!'); return; }
-        gistToken = t;
-        gistId    = id;
-        localStorage.setItem(KEY_TOKEN, t);
-        localStorage.setItem(KEY_ID,    id);
-        document.getElementById('settings').classList.add('hidden');
-        pushToGist(); // lokal veriyi Gist'e yaz
+            const row = rows[0];
+            supaRowId = row.id;
+            const remote = row.data;
+            const remoteUpdatedAt = remote?.updated_at || null;
+
+            if (lastRemoteUpdatedAt === remoteUpdatedAt) return; // değişiklik yok
+
+            // Supabase boşsa lokal veriyi koru
+            if (remote?.transactions?.length === 0 && transactions.length > 0) {
+                await pushToSupabase(); return;
+            }
+
+            const localUpdated = localStorage.getItem('butce_local_updated') || '0';
+            if (remoteUpdatedAt && remoteUpdatedAt > localUpdated) {
+                transactions = remote.transactions || [];
+                myBanks      = remote.banks        || ["Nakit"];
+                localStorage.setItem(KEY_DATA,  JSON.stringify(transactions));
+                localStorage.setItem(KEY_BANKS, JSON.stringify(myBanks));
+                lastRemoteUpdatedAt = remoteUpdatedAt;
+                updateSelects(); initMonthFilter(); updateUI();
+                setSyncStatus('ok', '↓ Güncellendi', nowStr());
+            } else {
+                lastRemoteUpdatedAt = remoteUpdatedAt;
+            }
+        } catch(e) { console.warn('silentPull:', e.message); }
     }
 
     // ── Ayarlar Paneli ─────────────────────────────────────────────────────
     function toggleSettings() {
         const s = document.getElementById('settings');
         s.classList.toggle('hidden');
-        if (!s.classList.contains('hidden')) {
-            document.getElementById('gistToken').value = gistToken;
-            document.getElementById('gistId').value    = gistId;
-            renderBankSettings();
-        }
+        if (!s.classList.contains('hidden')) renderBankSettings();
     }
 
     // ── Banka Yönetimi ─────────────────────────────────────────────────────
@@ -576,7 +531,7 @@
         const acc = document.getElementById('accountSelect').value;
         if (!d || !desc || !am) return alert("Eksik alan var!");
         transactions.unshift({ desc, amount: am, type: ty, acc, date: new Date(d).toISOString() });
-        pushToGist();
+        pushToSupabase();
         switchTab(ty);
     }
 
@@ -588,7 +543,7 @@
         if (!am || from === to) return alert("Geçersiz transfer!");
         transactions.unshift({ desc: `${from} ➔ ${to}`, amount: am, type: 'transfer', from, to, date: new Date().toISOString() });
         document.getElementById('transAmount').value = '';
-        pushToGist();
+        pushToSupabase();
         switchTab('gider');
     }
 
@@ -597,7 +552,7 @@
         if (confirm("Silinsin mi?")) {
             transactions.splice(i, 1);
             updateUI();
-            pushToGist();
+            pushToSupabase();
         }
     }
 
@@ -664,14 +619,9 @@
         updateSelects();
         initMonthFilter();
         updateUI();
-
-        if (gistToken && gistId) {
-            setSyncStatus('syncing', 'Gist\'ten son veriler çekiliyor…', '');
-            await silentPull(); // sayfa açılışında hemen çek
-            setInterval(silentPull, 30000); // sonra her 30 saniyede kontrol et
-        } else {
-            setSyncStatus('warn', 'Gist yapılandırılmadı — Ayarlar\'a gir', '');
-        }
+        setSyncStatus('syncing', 'Supabase\'e bağlanıyor…', '');
+        await silentPull();
+        setInterval(silentPull, 30000);
     };
 </script>
 </body>
